@@ -16,6 +16,20 @@ class ManagerAgent(BaseAgent):
     def __init__(self, model: str, api_key: str, base_url: str, system_prompt: str):
         super().__init__(name="Manager", system_prompt=system_prompt, model=model, api_key=api_key, base_url=base_url)
 
+    def _build_confirmed_task(self) -> str:
+        request = self.session.user_request
+        revisions = self.session.revision_feedback
+        if not revisions:
+            return request
+        numbered = "\n".join(f"{index}. {text}" for index, text in enumerate(revisions, 1))
+        return (
+            f"用户原始需求：\n{request}\n\n"
+            f"用户修改意见（按时间顺序）：\n{numbered}\n\n"
+            "Manager 最新确认摘要（辅助理解，不能覆盖用户原文）：\n"
+            f"{self.session.manager_confirmation}\n\n"
+            "执行规则：后来的明确修改覆盖先前冲突条件；未被修改的条件保持不变。"
+        )
+
     def handle_message(self, message: Message) -> Message:
         content = message.content.lower().strip()
 
@@ -23,7 +37,7 @@ class ManagerAgent(BaseAgent):
         if message.msg_type == MessageType.CONTROL and content in ("approve", "确认", "yes", "ok"):
             self.session.state_machine.force_transition(ConversationPhase.SCIENTIST_ANALYSIS)
             # 确认动作只批准已记录的用户需求，不额外调用模型改写任务。
-            self.session.confirmed_task = self.session.user_request
+            self.session.confirmed_task = self._build_confirmed_task()
             return Message(
                 sender=self.name,
                 receiver="Scientist",

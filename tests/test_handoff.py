@@ -223,6 +223,34 @@ class ManagerScientistHandoffTests(unittest.TestCase):
         self.assertIn("确认摘要 v2", prompts[-1])
         self.assertEqual(session.manager_confirmation, "确认摘要 v3")
 
+    def test_manager_approval_hands_off_full_revision_context(self):
+        session = Session()
+        session.start()
+        session.state_machine.force_transition(ConversationPhase.MANAGER_CONFIRM)
+        session.user_request = "东城区四类地物，输入 data/input.tif，输出 JPG"
+        session.revision_feedback = ["新增各类面积占比", "输出改为 PNG"]
+        session.manager_confirmation = "最新确认摘要：面积统计与 PNG 图"
+        manager = object.__new__(ManagerAgent)
+        manager.name = "Manager"
+        manager.session = session
+        manager._call_llm = lambda _: self.fail("approve 不应调用 LLM")
+
+        handoff = manager.handle_message(Message(
+            sender="User", receiver="Manager", content="approve",
+            msg_type=MessageType.CONTROL,
+        ))
+
+        self.assertEqual(session.confirmed_task, handoff.content)
+        self.assertIn(session.user_request, handoff.content)
+        self.assertIn(session.revision_feedback[0], handoff.content)
+        self.assertIn(session.revision_feedback[1], handoff.content)
+        self.assertLess(handoff.content.index(session.revision_feedback[0]),
+                        handoff.content.index(session.revision_feedback[1]))
+        self.assertIn(session.manager_confirmation, handoff.content)
+        self.assertIn("后来的明确修改覆盖先前冲突条件", handoff.content)
+        self.assertIn("未被修改的条件保持不变", handoff.content)
+        self.assertNotIn("approve", handoff.content)
+
     def test_scientist_reports_llm_failure_as_error_message(self):
         session = Session()
         session.start()
