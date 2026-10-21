@@ -197,6 +197,32 @@ class ManagerScientistHandoffTests(unittest.TestCase):
         self.assertEqual(session.confirmed_task, session.user_request)
         self.assertEqual(handoff.content, session.user_request)
 
+    def test_manager_revisions_keep_original_and_ordered_feedback(self):
+        session = Session()
+        session.start()
+        manager = object.__new__(ManagerAgent)
+        manager.name = "Manager"
+        manager.session = session
+        prompts = []
+
+        def call_llm(prompt):
+            prompts.append(prompt)
+            return f"确认摘要 v{len(prompts)}"
+
+        manager._call_llm = call_llm
+        original = "分析北京东城区四类地物：水体、建筑、植被、其他；输入 data/input.tif；输出 JPG"
+        first = "增加各类别面积和占比统计"
+        second = "把输出改成 PNG，并保留面积统计"
+        for requirement in (original, first, second):
+            manager.handle_message(Message(sender="User", receiver="Manager", content=requirement))
+
+        self.assertEqual(session.user_request, original)
+        self.assertEqual(session.revision_feedback, [first, second])
+        self.assertIn(original, prompts[-1])
+        self.assertLess(prompts[-1].index(first), prompts[-1].index(second))
+        self.assertIn("确认摘要 v2", prompts[-1])
+        self.assertEqual(session.manager_confirmation, "确认摘要 v3")
+
     def test_scientist_reports_llm_failure_as_error_message(self):
         session = Session()
         session.start()

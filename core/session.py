@@ -26,6 +26,7 @@ class Session:
         # 当前任务的关键交接文本。编排器应从这里读取已确认任务，
         # 而不能把 approve 等控制指令当作分析需求传给下游 Agent。
         self.user_request: str = ""
+        self.revision_feedback: list[str] = []
         self.manager_confirmation: str = ""
         self.confirmed_task: str = ""
         # 注册工具名供追踪器检测 stdout 中的工具调用
