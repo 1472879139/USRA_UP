@@ -1,0 +1,21 @@
+name: ursa-up
+channels:
+  - conda-forge
+dependencies:
+  # Keep the compiled GIS stack in one Conda solve.  Do not pip-install
+  # rasterio/GDAL into this environment: that can cause Windows DLL conflicts.
+  - python=3.10
+  - pip
+  # Prefer OpenBLAS to avoid a large MKL download; it remains ABI-compatible
+  # with the pinned NumPy build and is sufficient for this project's workload.
+  - "libblas=*=*openblas"
+  - numpy=1.26.4
+  - rasterio=1.3.11
+  - matplotlib=3.8.4
+  # Install these only after the Conda packages above have been solved.
+  - pip:
+      - flask==3.0.3
+      - gradio==4.44.1
+      # Gradio 4.44.1 imports the legacy HfFolder API, removed in Hub 1.x.
+      - huggingface-hub==0.25.2
+      - openai>=1.40,<2
