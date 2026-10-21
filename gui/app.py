@@ -504,7 +504,15 @@ class URSAGUI:
 
             content = user_input.strip().lower()
             is_continue = content in ('approve', '确认', 'yes', 'ok', 'end', 'exit', '终止')
-            if not is_continue or not self.agents:
+            is_manager_revision = (
+                not auto_pilot
+                and not is_continue
+                and self.session is not None
+                and self.session.is_active()
+                and self.session.state_machine.get_current_phase() == ConversationPhase.MANAGER_CONFIRM
+                and bool(self.agents)
+            )
+            if (not is_continue and not is_manager_revision) or not self.agents:
                 self._chat_history = []
                 self._monitor_history = []
                 self._raw_history = []

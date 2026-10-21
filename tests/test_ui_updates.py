@@ -186,6 +186,29 @@ class ReplayableUpdatesTests(unittest.TestCase):
         self.assertEqual(len(state["updates"]), 1)
         self.assertEqual(state["updates"][0]["content"], "approve")
 
+    def test_manager_revision_preserves_session_agents_and_replay_history(self):
+        view = make_view()
+        view._running = False
+        view.session.state_machine.force_transition(ConversationPhase.MANAGER_CONFIRM)
+        session = view.session
+        agents = {"manager": object()}
+        view.agents = agents
+        view._chat_history = [{"content": "原始需求"}]
+        view._ui_events = [{"seq": 1, "type": "message", "content": "原始需求"}]
+        view._ui_seq = 1
+        view._process_flow = lambda *args: None
+        view._create_agents = lambda: {"manager": object()}
+        view._setup_session = lambda: setattr(view, "session", Session())
+
+        accepted = view.start_analysis("补充面积占比统计")
+        view._thread.join()
+
+        self.assertTrue(accepted["success"])
+        self.assertIs(view.session, session)
+        self.assertIs(view.agents, agents)
+        self.assertEqual(view._chat_history[0]["content"], "原始需求")
+        self.assertEqual(view._ui_events[0]["content"], "原始需求")
+
     def test_new_request_clears_old_log_without_reusing_sequence_numbers(self):
         view = make_view()
         view._running = False
