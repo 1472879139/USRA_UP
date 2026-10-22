@@ -63,6 +63,7 @@ class SupervisorAgent(BaseAgent):
 
         # Executor RESULT 必须在开发消息的提前返回之前处理。
         if message.sender == "Executor" and message.msg_type == MessageType.RESULT:
+            allow_repair = message.metadata.pop("allow_artifact_repair", False) is True
             validation_issue = self._validate_execution_results(message)
             if validation_issue:
                 self._violations.append({
@@ -70,6 +71,13 @@ class SupervisorAgent(BaseAgent):
                     "type": "execution_validation",
                     "detail": validation_issue,
                 })
+                if allow_repair:
+                    from tools.artifact_diagnosis import diagnose_artifact_failure
+                    diagnosis = diagnose_artifact_failure(self.session.result_audit)
+                    if diagnosis["repairable"]:
+                        return Message(sender=self.name, receiver="Engineer", content=validation_issue,
+                                       msg_type=MessageType.ERROR,
+                                       metadata={"action": "repair_artifacts", "diagnosis": diagnosis})
                 self.session.terminate("结果核验失败：" + validation_issue)
                 return Message(sender=self.name, receiver="Manager", content=validation_issue,
                                msg_type=MessageType.ERROR, metadata={"action": "block"})

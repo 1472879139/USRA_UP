@@ -33,6 +33,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 def run_cli():
     """命令行模式"""
     import json
+    from core.message import Message, MessageType
     from core.session import Session
     from core.state_machine import ConversationPhase
     from agents.user_agent import UserAgent
@@ -261,57 +262,23 @@ def run_cli():
             session.terminate(eng_resp.content if eng_resp else "Engineer 未返回代码")
             break
 
-        # Executor（含增量错误修复重试，从config读取次数 + 数据问题上报告警）
-        print("\n▶️ [Executor 执行]")
-        max_retries = config.get("executor_max_retries", 5)
-        last_code = eng_resp.content if eng_resp else ""
-        for attempt in range(max_retries):
-            exec_resp = executor.handle_message(eng_resp)
-            if not exec_resp:
-                break
-            if exec_resp.msg_type == MessageType.ERROR:
-                print(f"   执行失败 (尝试 {attempt+1}/{max_retries}): {exec_resp.content[:3000]}")
-                # 检测数据缺失致命问题 → 上报监督Agent
-                if is_fatal_data_error(exec_resp.content):
-                    print("   检测到数据缺失问题，上报监督Agent...")
-                    engineer.report_issue(
-                        issue_type="missing_data",
-                        description=f"执行代码发现关键数据缺失: {exec_resp.content[:500]}",
-                        severity="fatal",
-                    )
-                    break
-                if attempt < max_retries - 1:
-                    # 增量修复：发送错误 + 上次代码
-                    repair_context = (
-                        f"## 代码执行出错，请针对以下错误进行定点修复（不要重写整个代码）\n\n"
-                        f"### 错误信息\n{exec_resp.content[-2000:]}\n\n"
-                        f"### 上次提交的代码（仅需修复错误相关部分）\n```python\n{last_code[-3000:]}\n```"
-                    )
-                    repair_msg = Message(
-                        sender="Executor", receiver="Engineer",
-                        content=repair_context, msg_type=MessageType.ERROR,
-                    )
-                    eng_resp = engineer.handle_message(repair_msg)
-                    if not eng_resp or eng_resp.msg_type == MessageType.ERROR:
-                        session.terminate(eng_resp.content if eng_resp else "Engineer 未返回修复代码")
-                        break
-                    if eng_resp:
-                        last_code = eng_resp.content
-                else:
-                    print(f"   错误: 已达最大重试次数")
-                    break
+        # GUI和CLI共用执行、核验、自动修复循环及总尝试上限。
+        from core.execution_cycle import run_execution_cycle
+
+        def print_execution_event(event):
+            data = event["data"]
+            if event["type"] == "message":
+                print(f"   [{data.sender}] {data.content[:1000]}")
             else:
-                print(f"   执行成功: {exec_resp.content[:1000]}")
-                break
+                print(f"   {data}")
 
-        if not session.is_active():
-            break
-
-        # 最终监督
-        final_review = supervisor.handle_message(exec_resp)
-        if final_review:
-            print(f"\n监督核验：{final_review.content}")
-        if not session.is_active():
+        exec_resp = run_execution_cycle(
+            session, engineer, executor, supervisor, eng_resp,
+            max_attempts=config.get("executor_max_retries", 5),
+            is_fatal_data_error=is_fatal_data_error,
+            notify=print_execution_event,
+        )
+        if exec_resp is None:
             break
 
         # 报告

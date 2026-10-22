@@ -417,69 +417,15 @@ class URSAGUI:
             if not self.session.is_active():
                 return
 
-            max_retries = self.config.get("executor_max_retries", 5)
-            last_code = eng_resp.content if eng_resp else ""
-            for attempt in range(max_retries):
-                self.ui_queue.put({"type": "phase", "data": "Executor 执行"})
-                exec_resp = executor.handle_message(eng_resp)
-                if exec_resp:
-                    self.ui_queue.put({"type": "message", "data": exec_resp})
-                if not self.session.is_active():
-                    return
-
-                if exec_resp and exec_resp.msg_type == MessageType.ERROR:
-                    if self._is_fatal_data_error(exec_resp.content):
-                        self.ui_queue.put({"type": "system", "data": "检测到数据缺失问题，上报监督Agent..."})
-                        engineer.report_issue(
-                            issue_type="missing_data",
-                            description=f"执行代码时发现关键数据缺失: {exec_resp.content[:500]}",
-                            severity="fatal",
-                        )
-                        reason = "任务因数据缺失终止，请检查 data/ 文件夹。"
-                        self.ui_queue.put({"type": "error", "data": reason})
-                        self.session.terminate(reason)
-                        return
-
-                    if attempt < max_retries - 1:
-                        self.ui_queue.put({"type": "system", "data": f"执行失败，Engineer 定点修复中... (尝试 {attempt+2}/{max_retries})"})
-                        self.ui_queue.put({"type": "phase", "data": "Engineer 编码"})
-                        repair_context = (
-                            f"## 代码执行出错，请针对以下错误进行定点修复（不要重写整个代码）\n\n"
-                            f"### 错误信息\n{exec_resp.content[-2000:]}\n\n"
-                            f"### 上次提交的代码（仅需修复错误相关部分）\n```python\n{last_code[-3000:]}\n```"
-                        )
-                        repair_msg = Message(
-                            sender="Executor", receiver="Engineer",
-                            content=repair_context, msg_type=MessageType.ERROR,
-                        )
-                        eng_resp = engineer.handle_message(repair_msg)
-                        if not eng_resp or eng_resp.msg_type == MessageType.ERROR:
-                            reason = eng_resp.content if eng_resp else "Engineer 未返回修复代码"
-                            self.ui_queue.put({"type": "error", "data": reason})
-                            self.session.terminate(reason)
-                            return
-                        if eng_resp:
-                            self.ui_queue.put({"type": "message", "data": eng_resp})
-                            last_code = eng_resp.content
-                        if not self.session.is_active():
-                            return
-                    else:
-                        reason = f"执行失败，已达最大重试次数 ({max_retries})"
-                        self.ui_queue.put({"type": "error", "data": reason})
-                        self.session.terminate(reason)
-                        return
-                else:
-                    break
-
-            self.ui_queue.put({"type": "phase", "data": "监督检查"})
-            sm.force_transition(ConversationPhase.REVIEW_CHECKING)
-            if exec_resp and exec_resp.msg_type == MessageType.RESULT:
-                final_supervisor = supervisor.handle_message(exec_resp)
-                if final_supervisor:
-                    if final_supervisor.msg_type == MessageType.ERROR:
-                        self.ui_queue.put({"type": "error", "data": final_supervisor.content})
-                    else:
-                        self.ui_queue.put({"type": "message", "data": final_supervisor})
+            from core.execution_cycle import run_execution_cycle
+            exec_resp = run_execution_cycle(
+                self.session, engineer, executor, supervisor, eng_resp,
+                max_attempts=self.config.get("executor_max_retries", 5),
+                is_fatal_data_error=self._is_fatal_data_error,
+                notify=self.ui_queue.put,
+            )
+            if exec_resp is None:
+                return
 
             if self.session.is_active():
                 self.ui_queue.put({"type": "phase", "data": "生成报告"})
