@@ -3,6 +3,7 @@
 from .base_agent import BaseAgent
 from core.message import Message, MessageType
 from core.state_machine import ConversationPhase
+from tools.data_context import render_data_context
 
 
 class ScientistAgent(BaseAgent):
@@ -22,6 +23,8 @@ class ScientistAgent(BaseAgent):
         prompt = f"""用户需求已确认，Manager 的转交信息如下：
 
 {message.content}
+
+{render_data_context(self.session.data_context)}
 
 请作为遥感科学家，定义这个分析任务：
 1. 问题陈述：明确要分析什么

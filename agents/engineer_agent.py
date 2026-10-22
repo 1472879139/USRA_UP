@@ -7,6 +7,7 @@ from datetime import datetime
 from .base_agent import BaseAgent
 from core.message import Message, MessageType
 from core.state_machine import ConversationPhase
+from tools.data_context import render_data_context
 
 # 错误类型分类表（纯正则，不依赖LLM）
 ERROR_CLASSIFICATION = [
@@ -275,6 +276,11 @@ class EngineerAgent(BaseAgent):
             prompt = f"""根据以下分析计划生成可执行的 Python 代码：
 
 {message.content}
+
+已确认用户要求（用户原文与有序修改优先于技术计划）：
+{self.session.confirmed_task or self.session.user_request}
+
+{render_data_context(self.session.data_context)}
 
 代码要求：
 1. 首先用 os.walk() 递归扫描 data/ 文件夹，列出所有可用文件

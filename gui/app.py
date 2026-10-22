@@ -294,10 +294,17 @@ class URSAGUI:
                 if is_continue:
                     # 先让 Manager 生成并持久化正式交接任务；approve 仅是控制指令，
                     # 不能直接作为 Scientist 的分析需求。
-                    manager.handle_message(Message(
+                    approval = manager.handle_message(Message(
                         sender="User", receiver="Manager",
                         content=user_input, msg_type=MessageType.CONTROL,
                     ))
+                    if not approval or approval.msg_type == MessageType.ERROR:
+                        self.ui_queue.put({"type": "error", "data": approval.content if approval else "Manager 未返回确认结果"})
+                        self.session.terminate("Manager 确认失败")
+                        return
+                    if approval.receiver != "Scientist":
+                        self.ui_queue.put({"type": "message", "data": approval})
+                        return
                     self._run_analysis_pipeline(manager, scientist, engineer, executor, supervisor, sm, user_input)
                 else:
                     self.ui_queue.put({"type": "system", "data": "收到修改意见，Manager 重新确认..."})
@@ -469,7 +476,10 @@ class URSAGUI:
             if exec_resp and exec_resp.msg_type == MessageType.RESULT:
                 final_supervisor = supervisor.handle_message(exec_resp)
                 if final_supervisor:
-                    self.ui_queue.put({"type": "message", "data": final_supervisor})
+                    if final_supervisor.msg_type == MessageType.ERROR:
+                        self.ui_queue.put({"type": "error", "data": final_supervisor.content})
+                    else:
+                        self.ui_queue.put({"type": "message", "data": final_supervisor})
 
             if self.session.is_active():
                 self.ui_queue.put({"type": "phase", "data": "生成报告"})
@@ -674,6 +684,8 @@ class URSAGUI:
                         result["status"] = "已终止"
                     elif self.session and self.session.state_machine.get_current_phase() == ConversationPhase.MANAGER_CONFIRM:
                         result["status"] = "等待确认"
+                    elif self.session and self.session.result_audit.get("status") == "needs_review":
+                        result["status"] = "分析结束（结果待复核）"
                     else:
                         result["status"] = "分析完成"
                 result["phase"] = "confirm" if (
@@ -713,7 +725,8 @@ class URSAGUI:
         elif waiting_confirm:
             status = "等待确认"
         elif phase_val == ConversationPhase.COMPLETED:
-            status = "分析完成"
+            status = ("分析结束（结果待复核）" if self.session.result_audit.get("status") == "needs_review"
+                      else "分析完成")
         elif phase_val == ConversationPhase.TERMINATED:
             status = "已终止"
         else:

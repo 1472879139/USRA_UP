@@ -112,7 +112,8 @@ class ExecutorAgent(BaseAgent):
             receiver="Manager",
             content=output,
             msg_type=MessageType.RESULT,
-            metadata={"execution_success": True},
+            metadata={"execution_success": True,
+                      "files_generated": getattr(self, "_last_result_files", [])},
         )
 
     def _safety_check(self, code: str) -> list:
@@ -140,6 +141,7 @@ class ExecutorAgent(BaseAgent):
         临时文件保存到 temp/ 文件夹，不自动删除，便于排查问题。"""
         tmp_path = None
         start_time = time.time()
+        self._last_result_files = []
         try:
             # 写入临时文件到 temp/ 文件夹（使用项目根目录绝对路径）
             temp_dir = os.path.join(self._project_root, "temp")
@@ -151,7 +153,8 @@ class ExecutorAgent(BaseAgent):
                 f.write(code)
 
             # 记录执行前的文件列表（检测新生成文件）
-            results_before = set(os.listdir(results_dir)) if os.path.exists(results_dir) else set()
+            from tools.result_audit import snapshot_result_files
+            results_before = snapshot_result_files(results_dir)
 
             # 构建子进程环境变量，注入 conda 环境的 DLL 搜索路径
             # Windows 下 GDAL/rasterio 需要 GDAL_DATA/PROJ_DATA 等才能正确加载共享 DLL
@@ -208,8 +211,10 @@ class ExecutorAgent(BaseAgent):
             duration_ms = (time.time() - start_time) * 1000
 
             # 检测新生成的文件
-            results_after = set(os.listdir(results_dir)) if os.path.exists(results_dir) else set()
-            new_files = list(results_after - results_before)
+            results_after = snapshot_result_files(results_dir)
+            new_files = sorted(name for name, signature in results_after.items()
+                               if results_before.get(name) != signature)
+            self._last_result_files = new_files
 
             # 执行追踪
             status = "error" if result.returncode != 0 else "success"

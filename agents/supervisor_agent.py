@@ -61,21 +61,26 @@ class SupervisorAgent(BaseAgent):
         if self._is_agent_report(message):
             return self._handle_agent_report(message)
 
-        # 1. Engineer-Executor 之间的错误/代码消息 — 正常开发流程，不干预
-        if message.sender in ("Engineer", "Executor", "Scientist"):
-            return None
-
-        # 2. Executor RESULT — 执行成功后验证 results/ 产出
+        # Executor RESULT 必须在开发消息的提前返回之前处理。
         if message.sender == "Executor" and message.msg_type == MessageType.RESULT:
             validation_issue = self._validate_execution_results(message)
             if validation_issue:
-                self._warning_count += 1
                 self._violations.append({
                     "time": datetime.now().isoformat(),
                     "type": "execution_validation",
                     "detail": validation_issue,
                 })
-                return self._issue_warning(message, validation_issue)
+                self.session.terminate("结果核验失败：" + validation_issue)
+                return Message(sender=self.name, receiver="Manager", content=validation_issue,
+                               msg_type=MessageType.ERROR, metadata={"action": "block"})
+            if self.session.result_audit.get("status") == "needs_review":
+                return Message(sender=self.name, receiver="Manager",
+                               content=self.session.result_audit["facts"],
+                               msg_type=MessageType.REVIEW, metadata={"action": "needs_review"})
+            return None
+
+        # Engineer-Executor 之间的错误/代码消息属于正常开发流程。
+        if message.sender in ("Engineer", "Executor", "Scientist"):
             return None
 
         # 3. 死锁检测
@@ -110,41 +115,18 @@ class SupervisorAgent(BaseAgent):
     # ============================================================
 
     def _validate_execution_results(self, message: Message) -> Optional[str]:
-        """执行后验证：检查 Executor 成功运行后 results/ 是否真的有产出。
+        """Only current-run artifacts are evidence; numeric validity is not semantic accuracy."""
+        from tools.result_audit import audit_execution_results
 
-        这是 v1.14 的核心改进——替代此前不可靠的关键词前置检测，
-        改为在代码执行成功后验证实际产出物。
-        """
-        results_dir = os.path.join(self._project_root, "results")
-        if not os.path.exists(results_dir):
-            return "执行报告成功但 results/ 目录不存在，结果可能未正确保存"
-
-        try:
-            all_files = os.listdir(results_dir)
-        except OSError:
-            return "无法读取 results/ 目录，权限可能不足"
-
-        if not all_files:
-            return "执行报告成功但 results/ 目录为空，没有任何结果文件生成"
-
-        # 只检查最近 5 分钟内修改的文件（避免历史残留干扰判断）
-        cutoff = time.time() - 300
-        recent_files = []
-        for f in all_files:
-            fpath = os.path.join(results_dir, f)
-            try:
-                if os.path.isfile(fpath) and os.path.getmtime(fpath) > cutoff and os.path.getsize(fpath) > 0:
-                    recent_files.append(f)
-            except OSError:
-                continue
-
-        if not recent_files:
-            return (
-                f"执行报告成功但 results/ 中 {len(all_files)} 个文件均无最近产出。"
-                f"请检查代码是否真正执行了文件保存操作。"
-            )
-
-        return None
+        # Use user texts in chronological order, not the Manager's paraphrase.
+        requirements = "\n".join([self.session.user_request, *self.session.revision_feedback])
+        audit = audit_execution_results(
+            os.path.join(self._project_root, "results"),
+            message.metadata.get("files_generated", []), requirements,
+        )
+        self.session.result_audit = audit
+        message.metadata["result_audit"] = audit
+        return "\n".join(audit["errors"]) or None
 
     # ============================================================
     # Agent 上报处理

@@ -29,6 +29,8 @@ class Session:
         self.revision_feedback: list[str] = []
         self.manager_confirmation: str = ""
         self.confirmed_task: str = ""
+        self.data_context: dict = {}
+        self.result_audit: dict = {}
         # 注册工具名供追踪器检测 stdout 中的工具调用
         try:
             from tools.registry import get_all_tool_names

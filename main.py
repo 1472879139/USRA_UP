@@ -190,7 +190,7 @@ def run_cli():
             break
 
         # 等待用户确认或自动确认
-        if not supervisor.is_auto_pilot():
+        if not supervisor.is_auto_pilot() and (not resp or resp.receiver != "Scientist"):
             confirm = input("\n👤 确认? (approve/end): ").strip()
             if confirm.lower() in ("end", "exit"):
                 session.terminate("用户终止")
@@ -202,6 +202,13 @@ def run_cli():
 
         if not session.is_active():
             break
+
+        if not resp or resp.msg_type == MessageType.ERROR:
+            session.terminate(resp.content if resp else "Manager 未返回确认结果")
+            break
+        if resp.receiver != "Scientist":
+            print(f"\n🤖 Manager: {resp.content}")
+            continue
 
         # Scientist — 先由 SupervisorAgent 智能选取相关文件
         print("\n🔬 [Scientist 阶段]")
@@ -301,7 +308,11 @@ def run_cli():
             break
 
         # 最终监督
-        supervisor.handle_message(exec_resp)
+        final_review = supervisor.handle_message(exec_resp)
+        if final_review:
+            print(f"\n监督核验：{final_review.content}")
+        if not session.is_active():
+            break
 
         # 报告
         if exec_resp and exec_resp.msg_type == MessageType.RESULT:
@@ -311,7 +322,10 @@ def run_cli():
                 print(f"   {report.content[:500]}")
 
         sm.force_transition(ConversationPhase.COMPLETED)
-        print("\n✅ 分析完成！结果在 results/ 文件夹")
+        if session.result_audit.get("status") == "needs_review":
+            print("\n分析结束，结果待复核。产物在 results/ 文件夹")
+        else:
+            print("\n✅ 分析完成！结果在 results/ 文件夹")
         break
 
     print(f"\n{'=' * 60}")

@@ -14,6 +14,8 @@ from core.state_machine import AgentState
 class BaseAgent(ABC):
     """Agent 基类，提供 LLM 调用、消息处理等通用能力"""
 
+    _include_conversation_history = True
+
     def __init__(self, name: str, system_prompt: str, model: str, api_key: str, base_url: str, max_tokens: int = 4096):
         self.name = name
         self.system_prompt = system_prompt
@@ -29,9 +31,10 @@ class BaseAgent(ABC):
     def _call_llm(self, user_message: str, temperature: float = 0.3,
                   stream: bool = False, reasoning_effort: Optional[str] = None) -> str:
         """调用 LLM，统一入口"""
+        history = self._conversation_history[-10:] if self._include_conversation_history else []
         messages = [
             {"role": "system", "content": self.system_prompt},
-            *self._conversation_history[-10:],  # 保留最近10条
+            *history,
             {"role": "user", "content": user_message},
         ]
         start_time = time.time()
@@ -120,7 +123,7 @@ class BaseAgent(ABC):
                 "status_code": getattr(e, "status_code", None),
                 "attempts": 1,
                 "prompt_chars": len(user_message),
-                "history_message_count": len(self._conversation_history[-10:]),
+                "history_message_count": len(history),
                 "max_tokens": self.max_tokens,
                 "streamed": stream,
                 "first_chunk_ms": round(first_chunk_ms, 2) if first_chunk_ms is not None else None,
