@@ -91,8 +91,10 @@ def _read_label_counts(path):
         return {"counts": counts, "pixel_area_km2": pixel_area}
 
 
-def audit_execution_results(results_dir, files_generated, requirement="") -> dict:
+def audit_execution_results(results_dir, files_generated, requirement="", *, task_subdir=None) -> dict:
     root = Path(results_dir).resolve()
+    task_root = (root / task_subdir).resolve() if task_subdir else root
+    task_root.relative_to(root)
     audit = {"status": "pass", "errors": [], "warnings": [], "statistics": [], "files": []}
     errors, warnings = audit["errors"], audit["warnings"]
     paths = []
@@ -100,6 +102,10 @@ def audit_execution_results(results_dir, files_generated, requirement="") -> dic
         path = (root / name).resolve()
         try:
             path.relative_to(root)
+            try:
+                path.relative_to(task_root)
+            except ValueError:
+                raise ValueError("不在本次任务目录中")
             if not path.is_file() or path.stat().st_size == 0:
                 raise ValueError("缺失或为空")
             paths.append(path)

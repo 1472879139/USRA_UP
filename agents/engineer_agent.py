@@ -162,6 +162,16 @@ class EngineerAgent(BaseAgent):
 
     def _code_message(self, prompt: str) -> Message:
         """仅将完整的模型响应作为可执行代码交给 Executor。"""
+        prompt += (
+            f"\n\n本次任务唯一产物目录：{self.session.result_relative_dir}\n"
+            "执行器通过 URSA_RESULTS_DIR 提供该目录的绝对路径。代码必须统一初始化：\n"
+            "import os\nRESULTS_DIR = os.environ['URSA_RESULTS_DIR']\n"
+            "os.makedirs(RESULTS_DIR, exist_ok=True)\n"
+            "所有 JPG、TIFF、CSV、报告和中间文件都使用 os.path.join(RESULTS_DIR, 文件名) 保存。"
+            "禁止直接写入 results/ 根目录或其他任务目录；不要每轮重新创建任务文件夹。"
+            "本任务的修复、重试及子步骤继续复用上述目录，读取本任务中间文件也从该目录获取。"
+            "代码末尾打印本目录及实际产物完整路径。"
+        )
         response = self._call_llm_with_memory(prompt)
         if response.startswith("ERROR:"):
             return Message(
@@ -261,7 +271,7 @@ class EngineerAgent(BaseAgent):
 - 输出纯 Python 代码，不要 markdown 标记
 - 确保所有字符串闭合（尤其中文标题）
 - 只使用本地数据文件
-- 所有结果保存到 results/ 文件夹
+- 所有结果保存到本次任务指定的 RESULTS_DIR，修复时复用
 - 代码末尾打印已保存的结果文件清单"""
 
             return self._code_message(prompt)
@@ -286,7 +296,7 @@ class EngineerAgent(BaseAgent):
 1. 首先用 os.walk() 递归扫描 data/ 文件夹，列出所有可用文件
 2. 只使用本地数据文件，不下载任何数据
 3. 使用 rasterio 读取数据，numpy 进行计算，matplotlib 生成图表
-4. 所有结果保存到 results/ 文件夹（先 os.makedirs('results', exist_ok=True)）
+4. 所有结果保存到本次任务的 RESULTS_DIR（由 URSA_RESULTS_DIR 提供），先创建目录
 5. 使用 os.path.join() 处理文件路径，确保跨平台兼容
 6. 添加必要的 print 语句输出进度和结果
 7. 不要使用 pip 安装包
@@ -299,7 +309,7 @@ class EngineerAgent(BaseAgent):
 - float64 → float32 可减半内存占用
 - rasterio 读取操作包裹在 try/except 中
 - 处理完成后 plt.close('all') 释放 matplotlib 内存
-- 代码末尾打印：print(f"结果已保存至 results/ 文件夹，共生成 X 个文件")"""
+- 代码末尾打印实际 RESULTS_DIR 路径及生成的文件清单"""
 
             return self._code_message(prompt)
 

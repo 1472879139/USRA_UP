@@ -1,6 +1,7 @@
 """会话管理 — 整合 MessageBus、StateMachine，管理整个对话生命周期"""
 
 import threading
+import uuid
 from datetime import datetime
 from typing import List, Optional, Callable
 from .message import Message, MessageType
@@ -18,6 +19,8 @@ class Session:
         self.state_machine = StateMachine()
         self.tracer = TraceCollector()
         self.created_at = datetime.now().isoformat()
+        self.result_subdir = f"task_{datetime.now():%Y%m%d_%H%M%S}_{uuid.uuid4().hex[:8]}"
+        self.result_relative_dir = "results/" + self.result_subdir
         self._active = False
         self._terminated = False
         self._terminate_reason: str = ""
@@ -100,6 +103,7 @@ class Session:
         result = {
             "session_id": self.session_id,
             "created_at": self.created_at,
+            "result_directory": self.result_relative_dir,
             "active": self._active,
             "terminated": self._terminated,
             "terminate_reason": self._terminate_reason,

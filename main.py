@@ -323,9 +323,9 @@ def run_cli():
 
         sm.force_transition(ConversationPhase.COMPLETED)
         if session.result_audit.get("status") == "needs_review":
-            print("\n分析结束，结果待复核。产物在 results/ 文件夹")
+            print(f"\n分析结束，结果待复核。产物在 {session.result_relative_dir}")
         else:
-            print("\n✅ 分析完成！结果在 results/ 文件夹")
+            print(f"\n✅ 分析完成！结果在 {session.result_relative_dir}")
         break
 
     print(f"\n{'=' * 60}")

@@ -146,8 +146,9 @@ class ExecutorAgent(BaseAgent):
             # 写入临时文件到 temp/ 文件夹（使用项目根目录绝对路径）
             temp_dir = os.path.join(self._project_root, "temp")
             results_dir = os.path.join(self._project_root, "results")
+            task_dir = os.path.join(results_dir, self.session.result_subdir)
             os.makedirs(temp_dir, exist_ok=True)
-            os.makedirs(results_dir, exist_ok=True)
+            os.makedirs(task_dir, exist_ok=True)
             fd, tmp_path = tempfile.mkstemp(suffix='.py', prefix='ursa_exec_', dir=temp_dir)
             with os.fdopen(fd, 'w', encoding='utf-8') as f:
                 f.write(code)
@@ -161,6 +162,7 @@ class ExecutorAgent(BaseAgent):
             _conda_prefix = os.path.dirname(sys.executable)
             _conda_library = os.path.join(_conda_prefix, "Library")
             env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+            env["URSA_RESULTS_DIR"] = os.path.abspath(task_dir)
             if os.path.isdir(_conda_library):
                 env["CONDA_PREFIX"] = _conda_prefix
                 _gdal_data = os.path.join(_conda_library, "share", "gdal")
@@ -215,14 +217,16 @@ class ExecutorAgent(BaseAgent):
             new_files = sorted(name for name, signature in results_after.items()
                                if results_before.get(name) != signature)
             self._last_result_files = new_files
+            outside_files = [name for name in new_files if not name.startswith(self.session.result_subdir + "/")]
 
             # 执行追踪
-            status = "error" if result.returncode != 0 else "success"
+            status = "error" if result.returncode != 0 or outside_files else "success"
             trace_data = {
                 "exit_code": result.returncode,
                 "temp_file": os.path.basename(tmp_path) if tmp_path else "",
                 "stdout_preview": output[:500],
                 "files_generated": new_files,
+                "result_directory": self.session.result_relative_dir,
             }
             if self.session and hasattr(self.session, 'tracer'):
                 tracer = self.session.tracer
@@ -246,7 +250,14 @@ class ExecutorAgent(BaseAgent):
                     return output, stderr
                 return output, f"进程退出码: {result.returncode}"
 
-            return output or "代码执行完成，无输出。", ""
+            if outside_files:
+                return output, (
+                    f"产物未保存到本次任务目录 {self.session.result_relative_dir}："
+                    + ", ".join(outside_files)
+                    + "。请改用 os.environ['URSA_RESULTS_DIR'] 作为所有输出路径的根目录后重试。"
+                )
+
+            return f"本次任务结果目录：{self.session.result_relative_dir}\n" + (output or "代码执行完成，无输出。"), ""
 
         except subprocess.TimeoutExpired:
             duration_ms = (time.time() - start_time) * 1000

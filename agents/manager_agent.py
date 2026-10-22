@@ -101,6 +101,7 @@ class ManagerAgent(BaseAgent):
                                content=audit.get("facts", "结果核验失败"))
             prompt = (
                 f"已确认用户要求：\n{self.session.confirmed_task or self._build_confirmed_task()}\n\n"
+                f"本次任务结果目录：{self.session.result_relative_dir}\n\n"
                 f"{render_data_context(self.session.data_context)}\n\n"
                 f"执行器返回了以下结果，请用中文简洁总结分析结果：\n\n{message.content}\n\n"
                 f"{audit.get('facts', '尚无机器核验结果，不能声称已核验正确。')}\n\n"

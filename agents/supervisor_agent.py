@@ -123,6 +123,7 @@ class SupervisorAgent(BaseAgent):
         audit = audit_execution_results(
             os.path.join(self._project_root, "results"),
             message.metadata.get("files_generated", []), requirements,
+            task_subdir=self.session.result_subdir,
         )
         self.session.result_audit = audit
         message.metadata["result_audit"] = audit

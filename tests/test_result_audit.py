@@ -20,9 +20,11 @@ from core.state_machine import ConversationPhase
 from tests.test_ui_updates import make_view
 
 
-def make_outputs(root, water_count=1, water_area=0.0001):
+def make_outputs(root, water_count=1, water_area=0.0001, subdir=None):
     results = Path(root) / "results"
-    results.mkdir(exist_ok=True)
+    if subdir:
+        results = results / subdir
+    results.mkdir(parents=True, exist_ok=True)
     Image.new("RGB", (8, 8), "white").save(results / "final_map_landcover_test.jpg")
     with rasterio.open(results / "final_map_landcover_test.tif", "w", driver="GTiff",
                        width=2, height=2, count=1, dtype="uint8", nodata=0,
@@ -33,7 +35,7 @@ def make_outputs(root, water_count=1, water_area=0.0001):
         f"水体,{water_count},{water_area},25\n植被,2,0.0002,50\n其他,1,0.0001,25\n",
         encoding="utf-8-sig",
     )
-    return results, [p.name for p in results.iterdir()]
+    return results, [(Path(subdir) / p.name).as_posix() if subdir else p.name for p in results.iterdir()]
 
 
 class ResultAuditTests(unittest.TestCase):
@@ -180,19 +182,19 @@ class ResultAuditTests(unittest.TestCase):
 
     def test_overwritten_result_is_tracked_by_executor(self):
         with TemporaryDirectory() as tmp:
-            results = Path(tmp) / "results"
-            results.mkdir()
-            (results / "existing.txt").write_text("old", encoding="utf-8")
             executor = ExecutorAgent(model="test", api_key="test", base_url="https://example.invalid", system_prompt="test", code_timeout=20)
             executor._project_root = tmp
             executor.session = Session()
             executor.session.start()
+            results = Path(tmp) / "results" / executor.session.result_subdir
+            results.mkdir(parents=True)
+            (results / "existing.txt").write_text("old", encoding="utf-8")
             result = executor.handle_message(Message(
                 sender="Engineer", receiver="Executor", msg_type=MessageType.CODE,
-                content="from pathlib import Path\nPath('results/existing.txt').write_text('new result', encoding='utf-8')\nprint('ok')",
+                content="import os\nfrom pathlib import Path\n(Path(os.environ['URSA_RESULTS_DIR']) / 'existing.txt').write_text('new result', encoding='utf-8')\nprint('ok')",
             ))
             self.assertEqual(result.msg_type, MessageType.RESULT)
-            self.assertIn("existing.txt", result.metadata.get("files_generated", []))
+            self.assertIn(executor.session.result_subdir + "/existing.txt", result.metadata.get("files_generated", []))
 
     def test_manager_does_not_publish_highest_share_claim_that_conflicts_with_table(self):
         session = Session()
@@ -221,8 +223,8 @@ class ResultAuditTests(unittest.TestCase):
 
     def test_gui_does_not_report_success_when_artifact_audit_fails(self):
         with TemporaryDirectory() as tmp:
-            _, names = make_outputs(tmp, water_count=2)
             view = make_view()
+            _, names = make_outputs(tmp, water_count=2, subdir=view.session.result_subdir)
             view.config = {"executor_max_retries": 1}
             supervisor = SupervisorAgent(model="test", api_key="test", base_url="https://example.invalid", system_prompt="test")
             supervisor.session, supervisor._project_root = view.session, tmp

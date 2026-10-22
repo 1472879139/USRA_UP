@@ -28,9 +28,15 @@ def _get_project_root() -> str:
 def _ensure_results_dir(subfolder: str = "") -> str:
     """Create results/ subfolder and return its absolute path."""
     root = _get_project_root()
-    results = os.path.join(root, "results")
+    results_root = os.path.realpath(os.path.join(root, "results"))
+    results = os.path.realpath(os.environ.get("URSA_RESULTS_DIR") or results_root)
+    if os.path.commonpath([results_root, results]) != results_root:
+        raise ValueError("URSA_RESULTS_DIR 必须位于项目 results/ 下")
+    base = results
     if subfolder:
-        results = os.path.join(results, subfolder)
+        results = os.path.realpath(os.path.join(results, subfolder))
+        if os.path.commonpath([base, results]) != base:
+            raise ValueError("结果子目录不能越出本次任务目录")
     os.makedirs(results, exist_ok=True)
     return results
 
