@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-URSA-UP (v1.14) is a Chinese-language multi-agent remote sensing (遥感) analysis system. It orchestrates LLM-powered agents to understand user analysis requests, plan scientific approaches, generate Python code, execute it safely, and produce results — all from local raster data. A Supervisor agent monitors the entire pipeline for deadlocks, repetition, and execution quality.
+USRA_UP (v1.14) is a Chinese-language multi-agent remote sensing (遥感) analysis system. It orchestrates LLM-powered agents to understand user analysis requests, plan scientific approaches, generate Python code, execute it safely, and produce results — all from local raster data. A Supervisor agent monitors the entire pipeline for deadlocks, repetition, and execution quality.
 
 ## Running the Application
 

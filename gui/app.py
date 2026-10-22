@@ -1,4 +1,4 @@
-"""URSA-UP 可视化界面 — 基于 Flask 的三栏暗色主题 GUI"""
+"""USRA_UP 可视化界面 — 基于 Flask 的三栏暗色主题 GUI"""
 
 import os
 import sys
@@ -45,7 +45,7 @@ def load_config() -> dict:
 
 
 class URSAGUI:
-    """URSA-UP 可视化应用控制器"""
+    """USRA_UP 可视化应用控制器"""
 
     # 中文阶段名映射
     PHASE_NAMES = {
@@ -840,7 +840,7 @@ class URSAGUI:
 
         lines = []
         lines.append("=" * 60)
-        lines.append("  URSA-UP 遥感分析系统 — 对话记录")
+        lines.append("  USRA_UP 遥感分析系统 — 对话记录")
         lines.append(f"  导出时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         lines.append("=" * 60)
         lines.append("")
@@ -985,5 +985,5 @@ def create_app() -> Flask:
 def launch_app(server_name: str = "127.0.0.1", server_port: int = 7860):
     """启动 Flask 应用"""
     app = create_app()
-    print(f"URSA-UP v1.14 界面启动: http://{server_name}:{server_port}")
+    print(f"USRA_UP v1.14 界面启动: http://{server_name}:{server_port}")
     app.run(host=server_name, port=server_port, debug=False, threaded=True)

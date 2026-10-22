@@ -7,7 +7,7 @@ def create_header() -> gr.HTML:
     """页面头部"""
     return gr.HTML("""
     <div style="text-align:center; padding:20px; background:linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); border-radius:15px; margin-bottom:20px;">
-        <h1 style="color:#e94560; margin:0; font-size:2.2em;">🌍 URSA-UP <span style="font-size:0.5em; color:#8892b0;">v1.14</span></h1>
+        <h1 style="color:#e94560; margin:0; font-size:2.2em;">🌍 USRA_UP <span style="font-size:0.5em; color:#8892b0;">v1.14</span></h1>
         <p style="color:#a8a8d0; margin:10px 0 0 0; font-size:1.1em;">
             遥感分析多智能体系统 · 升级版 | 监督监测 · 可视化交互 · 智能托管
         </p>

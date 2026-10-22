@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-URSA-UP — 遥感分析多智能体系统 (升级版)
+USRA_UP — 遥感分析多智能体系统 (升级版)
 
 升级特性：
   1. 监督 Agent 全程监测 — 数据溯源、死锁检测、一键托管
@@ -77,7 +77,7 @@ def run_cli():
     from tools.io_kit import print_data_summary, scan_data_directory
 
     print("=" * 60)
-    print("  URSA-UP 遥感分析多智能体系统 v1.14")
+    print("  USRA_UP 遥感分析多智能体系统 v1.14")
     print("=" * 60)
     print(f"  模型: {model}")
     print("  特性: 监督监测 | 数据溯源 | 死锁检测 | 一键托管")
@@ -343,7 +343,7 @@ def run_gui(port: int = 7860):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="URSA-UP 遥感分析多智能体系统 (升级版)",
+        description="USRA_UP 遥感分析多智能体系统 (升级版)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
