@@ -1,0 +1,21 @@
+{
+  "model": "deepseek-flash",
+  "api_key": "REPLACE_WITH_YOUR_API_KEY",
+  "base_url": "https://YOUR-OPENAI-COMPATIBLE-HOST/v1",
+  "data_path": "data",
+  "results_path": "results",
+  "max_rounds": 50,
+  "code_timeout": 300,
+  "engineer_max_tokens": 32768,
+  "executor_max_retries": 5,
+  "engineer_memory_enabled": true,
+  "engineer_memory_max_items": 10,
+  "supervisor": {
+    "max_warnings": 5,
+    "repetition_threshold": 4,
+    "max_transitions": 100,
+    "enable_data_tracing": false,
+    "enable_deadlock_detection": true,
+    "enable_auto_pilot": false
+  }
+}

@@ -1,9 +1,67 @@
-temp/
-exports/
-results/
-__pycache__/
-*.pyc
-.idea/
-/config.json
+# Local datasets, generated artifacts, exported conversations and executed scripts
 /data/
+/results/
+/result/
+/exports/
+/temp/
+
+# Real credentials stay local; config.example.json is safe to version
+/config.json
+/config.local.json
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Virtual environment contents (keep environment.yml and requirements.txt)
+.venv/
+venv/
+env/
+.env/
+.conda/
+conda-meta/
+__pypackages__/
+
+# Python and test caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+.nox/
+.ipynb_checkpoints/
+
+# Build and packaging outputs
+build/
+dist/
+*.egg-info/
+
+# IDE and local assistant state; keep project documentation under docs/
+.idea/
+.vscode/
+*.iml
+.superpowers/
+
+# Recovery snapshots, editor leftovers and runtime logs
 /*.zip
+*.bak
+*.orig
+*.rej
+*.swp
+*.swo
+*~
+*.log
+/logs/
+
+# Operating system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
