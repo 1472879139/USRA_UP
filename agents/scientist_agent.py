@@ -4,6 +4,7 @@ from .base_agent import BaseAgent
 from core.message import Message, MessageType
 from core.state_machine import ConversationPhase
 from tools.data_context import render_data_context
+from tools.task_contract import ensure_task_contract, render_task_contract
 
 
 class ScientistAgent(BaseAgent):
@@ -19,12 +20,19 @@ class ScientistAgent(BaseAgent):
 
     def handle_message(self, message: Message) -> Message:
         self.session.state_machine.force_transition(ConversationPhase.SCIENTIST_ANALYSIS)
+        if self.session.user_request or self.session.confirmed_task:
+            ensure_task_contract(self.session)
+        if self.session.task_capability.get("status") == "blocked":
+            return Message(sender=self.name, receiver="Manager", msg_type=MessageType.ERROR,
+                           content="\n".join(self.session.task_capability["reasons"]))
 
         prompt = f"""用户需求已确认，Manager 的转交信息如下：
 
 {message.content}
 
 {render_data_context(self.session.data_context)}
+
+{render_task_contract(self.session)}
 
 请作为遥感科学家，定义这个分析任务：
 1. 问题陈述：明确要分析什么

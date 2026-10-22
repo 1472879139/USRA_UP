@@ -23,8 +23,10 @@ function makeElement(messageHeight = 0) {
         .replaceAll('>', '&gt;').replaceAll('"', '&quot;');
     },
     get innerHTML() { return htmlValue; },
-    set innerHTML(value) { htmlValue = String(value); },
+    set innerHTML(value) { htmlValue = String(value); children.length = 0; },
     disabled: false,
+    open: false,
+    parentNode: null,
     scrollHeight: messageHeight,
     style: {},
     children,
@@ -37,7 +39,15 @@ function makeElement(messageHeight = 0) {
         else classes.delete(name);
       },
     },
-    appendChild(child) { children.push(child); },
+    appendChild(child) {
+      if (child.parentNode) {
+        const siblings = child.parentNode.children;
+        siblings.splice(siblings.indexOf(child), 1);
+      }
+      children.push(child);
+      child.parentNode = this;
+      return child;
+    },
     querySelector(selector) {
       if (!selectors.has(selector)) selectors.set(selector, makeElement(messageHeight));
       return selectors.get(selector);
@@ -57,13 +67,18 @@ function makePage({ messageHeight = 0 } = {}) {
     getElementById(id) {
       if (!elements.has(id)) {
         const element = makeElement(messageHeight);
-        if (id === 'messages') element.appendChild = node => messageNodes.push(node);
+        if (id === 'messages' || id === 'processMessages') {
+          const append = element.appendChild;
+          element.appendChild = function(node) { messageNodes.push(node); return append.call(this, node); };
+        }
         elements.set(id, element);
       }
       return elements.get(id);
     },
     createElement() { return makeElement(messageHeight); },
   };
+  for (const [, id] of html.matchAll(/id="([^"]+)"/g)) document.getElementById(id);
+  document.getElementById('chatSlot').appendChild(document.getElementById('messages'));
   const context = vm.createContext({
     document,
     fetch(url, options) {
@@ -293,4 +308,149 @@ test('replayed long agent reply is collapsible after a page refresh', async () =
   assert.equal(button.textContent, '展开全文');
   button.onclick();
   assert.equal(button.textContent, '收起');
+});
+
+test('plain result card escapes model text and only renders current result links', async () => {
+  const page = makePage();
+  page.requests[0].resolve({...managerDone, result_delivery: {
+    completion: 'candidate', headline: '<script>bad()</script>', goal: '建筑变化',
+    artifact_check: '文件已检查', verification: '尚未独立验证', limitations: ['需复核'], findings: [],
+    files: [{name: 'map.png', kind: 'image', url: '/api/result_file?path=task%2Fmap.png'},
+      {name: 'evil', kind: 'image', url: 'javascript:alert(1)'}],
+    previews: [{name: 'map.png', kind: 'image', url: '/api/result_file?path=task%2Fmap.png'},
+      {name: 'evil', url: 'javascript:alert(1)'}],
+    professional_report: '<img src=x onerror=bad()>',
+  }});
+  await flushPromises();
+  const html = page.elements.get('resultSummary').innerHTML;
+  assert.ok(html.includes('&lt;script&gt;'));
+  assert.ok(!html.includes('<script>'));
+  assert.ok(!html.includes('javascript:'));
+  assert.ok(html.includes('候选结果'));
+  assert.ok(html.includes('/api/result_file?path=task%2Fmap.png'));
+  assert.equal(page.elements.get('workspace').classList.contains('has-result'), true);
+});
+
+test('直接展示结果并把原对话节点保存在可展开的记录中', () => {
+  const page = makePage();
+  assert.ok(!html.includes('id="plainView"') && !html.includes('id="expertView"'));
+  assert.equal(typeof page.context.setViewMode, 'undefined');
+  page.context.processUpdates([{type: 'message', sender: 'Manager', content: '请确认需求', time: '10:00:00'}]);
+  const messages = page.elements.get('messages');
+  const originalMessage = page.messageNodes[0];
+  page.context.renderDelivery({completion: 'failed', headline: '未完成', files: [], previews: []});
+  assert.equal(messages.parentNode, page.elements.get('conversationRecord'));
+  assert.equal(messages.children[0], originalMessage);
+  const card = page.elements.get('resultSummary').innerHTML;
+  assert.ok(card.includes('<details id="professionalDetails">'));
+  assert.ok(!card.includes('<details open'));
+  page.context.renderDelivery(null);
+  assert.equal(messages.parentNode, page.elements.get('chatSlot'));
+  assert.equal(messages.children[0], originalMessage);
+  assert.equal(page.elements.get('resultSummary').innerHTML, '');
+  assert.equal(page.elements.get('workspace').classList.contains('has-result'), false);
+});
+
+test('selected files are sent with request but approval does not replace inputs', async () => {
+  const page = makePage();
+  page.requests[0].resolve(managerDone);
+  await flushPromises();
+  vm.runInContext("selectedInputs.add('pair/before.tif'); sendToBackend('看看哪里变化了', false)", page.context);
+  assert.deepEqual(JSON.parse(page.requests[1].options.body).selected_inputs, ['pair/before.tif']);
+  page.requests[1].resolve({success: true});
+  await flushPromises();
+  page.requests.at(-1).resolve(managerDone);
+  await flushPromises();
+  page.context.sendApprove();
+  assert.equal(JSON.parse(page.requests.at(-1).options.body).selected_inputs, undefined);
+});
+
+test('技术记录放入折叠过程，需求确认仍在对话中显示', () => {
+  const page = makePage();
+  page.context.processUpdates([{type: 'message', sender: 'Engineer', content: '完整代码', time: '10:00:00'}]);
+  assert.ok(page.messageNodes[0].className.includes('technical-message'));
+  assert.ok(page.messageNodes[0].innerHTML.includes('完整代码'));
+  assert.equal(page.messageNodes[0].parentNode, page.elements.get('processMessages'));
+  page.context.processUpdates([{type: 'message', sender: 'Manager', content: '请确认需求', time: '10:00:00'}]);
+  assert.equal(page.messageNodes[1].parentNode, page.elements.get('messages'));
+  assert.ok(html.includes('<details id="processDetails" class="process-details">'));
+});
+
+test('相同轮询快照保留展开状态和原对话按钮事件', () => {
+  const page = makePage({messageHeight: 400});
+  page.context.processUpdates([{type: 'message', sender: 'Manager', content: '确认需求'.repeat(200), time: '10:00:00'}]);
+  const button = page.messageNodes[0].querySelector('.bubble').children[0];
+  const result = {completion: 'candidate', headline: '候选区域', files: [], previews: []};
+  page.context.renderDelivery(result);
+  const panel = page.elements.get('resultSummary');
+  const marker = makeElement();
+  panel.appendChild(marker);
+  page.elements.get('processDetails').open = true;
+  page.context.renderDelivery({...result});
+  assert.equal(panel.children[0], marker);
+  assert.equal(page.elements.get('processDetails').open, true);
+  button.onclick();
+  assert.equal(button.textContent, '收起');
+});
+
+test('过程关闭时收到的长回复仍可完整展开', () => {
+  const page = makePage({messageHeight: 0});
+  const text = '完整分析方案'.repeat(300);
+  page.context.processUpdates([{type: 'message', sender: 'Scientist', content: text, time: '10:00:00'}]);
+  const message = page.messageNodes[0];
+  const button = message.querySelector('.bubble').children[0];
+  assert.ok(message.innerHTML.includes(text));
+  assert.equal(button.textContent, '展开全文');
+  button.onclick();
+  assert.equal(button.textContent, '收起');
+});
+
+test('新建对话清除旧结果和过程并收起详情', async () => {
+  const page = makePage();
+  page.requests[0].resolve(managerDone);
+  await flushPromises();
+  page.context.processUpdates([{type: 'message', sender: 'Engineer', content: '旧代码', time: '10:00:00'}]);
+  page.context.renderDelivery({completion: 'candidate', headline: '旧结果', files: [], previews: []});
+  page.elements.get('processDetails').open = true;
+  page.elements.get('conversationArchive').open = true;
+  page.context.newChat();
+  page.requests[1].resolve({success: true});
+  await flushPromises();
+  assert.equal(page.elements.get('processMessages').innerHTML, '');
+  assert.equal(page.elements.get('processMessages').children.length, 0);
+  assert.equal(page.elements.get('processDetails').open, false);
+  assert.equal(page.elements.get('conversationArchive').open, false);
+  assert.equal(page.elements.get('messages').parentNode, page.elements.get('chatSlot'));
+  assert.equal(page.elements.get('resultSummary').innerHTML, '');
+});
+
+test('刷新顶部目录扫描保留展开状态且不触发折叠', async () => {
+  const page = makePage();
+  let prevented = false;
+  let stopped = false;
+  const panel = page.elements.get('dataPanel');
+  panel.open = true;
+  page.context.refreshData({preventDefault() { prevented = true; }, stopPropagation() { stopped = true; }});
+  const request = page.requests.find(item => item.url === '/api/refresh_data');
+  assert.equal(request.options.method, 'POST');
+  request.resolve({success: true, html: '<p>本次扫描：2幅影像</p>'});
+  await flushPromises();
+  assert.equal(prevented, true);
+  assert.equal(stopped, true);
+  assert.equal(panel.open, true);
+  assert.equal(page.elements.get('dataPanelBody').innerHTML, '<p>本次扫描：2幅影像</p>');
+});
+
+test('分析过程收起时右侧管线仍接收进度监督和追溯更新', async () => {
+  const page = makePage();
+  page.requests[0].resolve({...managerDone, phase: 'engineer', running: true, done: false,
+    waiting_confirm: false, monitor_html: '<p>正在检查本次任务</p>',
+    trace_html: '<tr><td>本次执行记录</td></tr>'});
+  await flushPromises();
+  assert.equal(page.elements.get('processDetails').open, false);
+  assert.equal(page.elements.get('step-engineer').classList.contains('active'), true);
+  assert.equal(page.elements.get('step-confirm').querySelector('.step-status').textContent, '✓');
+  assert.equal(page.elements.get('phaseName').textContent, 'Engineer 编码');
+  assert.equal(page.elements.get('monitorBox').innerHTML, '<p>正在检查本次任务</p>');
+  assert.equal(page.elements.get('traceBody').innerHTML, '<tr><td>本次执行记录</td></tr>');
 });

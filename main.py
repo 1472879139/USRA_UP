@@ -218,7 +218,9 @@ def run_cli():
             or session.user_request
             or session.manager_confirmation
         )
-        file_selection = supervisor.select_relevant_files(confirmed_task, scan_result)
+        locked_inputs = session.task_contract.get("inputs", [])
+        file_selection = ({"relevant_files": [{"file_name": name} for name in locked_inputs]}
+                          if locked_inputs else supervisor.select_relevant_files(confirmed_task, scan_result))
         file_path_map = {}
         for f in scan_result.get("data", {}).get("files", []):
             fname = f.get("file_name", "")
@@ -230,6 +232,8 @@ def run_cli():
                     file_path_map[fname] = fname
         selected_names = [f['file_name'] for f in file_selection.get('relevant_files', [])]
         selected_files = [file_path_map.get(n, n) for n in selected_names]
+        if locked_inputs:
+            selected_files = ["data/" + name for name in locked_inputs]
         print(f"   📁 智能匹配文件: {', '.join(selected_files)}")
         print(f"   📝 {file_selection.get('summary', '')}")
 

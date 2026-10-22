@@ -8,6 +8,7 @@ from .base_agent import BaseAgent
 from core.message import Message, MessageType
 from core.state_machine import ConversationPhase
 from tools.data_context import render_data_context
+from tools.task_contract import render_task_contract
 
 # 错误类型分类表（纯正则，不依赖LLM）
 ERROR_CLASSIFICATION = [
@@ -292,6 +293,8 @@ class EngineerAgent(BaseAgent):
 
 {render_data_context(self.session.data_context)}
 
+{render_task_contract(self.session)}
+
 代码要求：
 1. 首先用 os.walk() 递归扫描 data/ 文件夹，列出所有可用文件
 2. 只使用本地数据文件，不下载任何数据
@@ -301,6 +304,8 @@ class EngineerAgent(BaseAgent):
 6. 添加必要的 print 语句输出进度和结果
 7. 不要使用 pip 安装包
 8. 不要生成假数据或模拟数据
+9. 默认生成能让普通用户看懂的结果图：中文标题、中文图例；变化任务用前后对照或在原图叠加标记。用户明确取消图像时遵守其要求。
+10. 在报告中逐项说明用户目标完成到什么程度；亮度变化候选不能改称已验证建筑变化。去云补全必须说明是推算。
 
 内存安全要求（v1.14，Windows 环境尤为重要）：
 - 大影像（>5000×5000 像素）必须使用 rasterio Window 参数分块处理

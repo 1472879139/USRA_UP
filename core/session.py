@@ -34,6 +34,10 @@ class Session:
         self.confirmed_task: str = ""
         self.data_context: dict = {}
         self.result_audit: dict = {}
+        self.selected_inputs: list[str] = []
+        self.task_contract: dict = {}
+        self.task_capability: dict = {}
+        self.result_delivery: dict = {}
         # 注册工具名供追踪器检测 stdout 中的工具调用
         try:
             from tools.registry import get_all_tool_names
@@ -109,6 +113,9 @@ class Session:
             "terminate_reason": self._terminate_reason,
             "progress": self.get_progress(),
             "message_count": self.bus.get_round_count(),
+            "task_contract": self.task_contract,
+            "task_capability": self.task_capability,
+            "result_delivery": self.result_delivery,
         }
         if hasattr(self, 'tracer') and self.tracer:
             result["trace_summary"] = self.tracer.get_summary()

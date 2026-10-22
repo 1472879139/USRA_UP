@@ -373,7 +373,9 @@ class URSAGUI:
                 or self.session.user_request
                 or self.session.manager_confirmation
             )
-            file_selection = supervisor.select_relevant_files(confirmed_task, scan)
+            locked_inputs = self.session.task_contract.get("inputs", [])
+            file_selection = ({"relevant_files": [{"file_name": name} for name in locked_inputs]}
+                              if locked_inputs else supervisor.select_relevant_files(confirmed_task, scan))
             file_path_map = {}
             for f in scan.get("data", {}).get("files", []):
                 fname = f.get("file_name", "")
@@ -385,6 +387,8 @@ class URSAGUI:
                         file_path_map[fname] = fname
             selected_names = [f['file_name'] for f in file_selection.get('relevant_files', [])]
             selected_files = [file_path_map.get(n, n) for n in selected_names]
+            if locked_inputs:
+                selected_files = ["data/" + name for name in locked_inputs]
             self.ui_queue.put({"type": "system", "data": f"&#128193; 智能匹配文件: {', '.join(selected_files)}"})
 
             context_parts = [f"已确认任务: {confirmed_task}"] if confirmed_task else []
@@ -447,7 +451,7 @@ class URSAGUI:
             if self.session and self.session.is_active():
                 self.session.terminate("管线异常")
 
-    def start_analysis(self, user_input: str, auto_pilot: bool = False):
+    def start_analysis(self, user_input: str, auto_pilot: bool = False, selected_inputs=None):
         """启动或继续分析流程"""
         with self._ui_lock:
             worker = getattr(self, "_thread", None)
@@ -457,6 +461,14 @@ class URSAGUI:
 
             if not user_input.strip():
                 return {"success": False, "message": "请输入分析需求。"}
+
+            if selected_inputs is not None:
+                from gui.data_files import validate_selected_inputs
+                try:
+                    selected_inputs = validate_selected_inputs(
+                        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), selected_inputs)
+                except ValueError as error:
+                    return {"success": False, "message": str(error)}
 
             content = user_input.strip().lower()
             is_continue = content in ('approve', '确认', 'yes', 'ok', 'end', 'exit', '终止')
@@ -481,6 +493,12 @@ class URSAGUI:
                         break
                 self.agents = self._create_agents()
                 self._setup_session()
+
+            if selected_inputs is not None and not is_continue:
+                self.session.selected_inputs = selected_inputs
+            # 没有分析目标时，先推荐用途，不让托管模式替用户编造目标。
+            if content == "auto":
+                auto_pilot = False
 
             self._running = True
             self.ui_queue.put({
@@ -588,12 +606,14 @@ class URSAGUI:
                     "time": datetime.now().strftime("%H:%M:%S"),
                     "sender": sender,
                     "content": content,
+                    "purpose": msg.metadata.get("purpose", ""),
                 })
 
                 result["updates"].append({
                     "type": "message",
                     "sender": sender,
                     "content": content,
+                    "purpose": msg.metadata.get("purpose", ""),
                     "time": datetime.now().strftime("%H:%M:%S"),
                 })
 
@@ -678,6 +698,11 @@ class URSAGUI:
         else:
             status = "就绪"
 
+        delivery = self.session.result_delivery if self.session else None
+        if self.session and self.session.is_terminated() and self.session.user_request:
+            from tools.result_delivery import build_result_delivery
+            delivery = build_result_delivery(
+                self.session, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         return {
             "updates": [],
             "phase": phase,
@@ -685,6 +710,8 @@ class URSAGUI:
             "running": self._running,
             "done": done,
             "waiting_confirm": waiting_confirm,
+            "result_delivery": delivery or None,
+            "selected_inputs": self.session.selected_inputs if self.session else [],
             "monitor_html": self._render_monitor_html(),
             "trace_html": self._render_trace_html(),
         }
@@ -856,11 +883,19 @@ class URSAGUI:
 
 # === Flask 应用 ===
 
-def create_app() -> Flask:
+def create_app(controller=None) -> Flask:
     """创建 Flask 应用"""
     template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
     app = Flask(__name__, template_folder=template_dir)
-    ctrl = URSAGUI()
+    ctrl = controller if controller is not None else URSAGUI()
+    app.config["PROJECT_ROOT"] = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    app.config["MAX_CONTENT_LENGTH"] = 128 * 1024 * 1024
+    from gui.data_files import register_data_routes
+    register_data_routes(app, ctrl)
+
+    @app.errorhandler(413)
+    def upload_too_large(error):
+        return jsonify({"success": False, "message": "本次文件过大，请将一次上传总量控制在128MB以内。"}), 413
 
     @app.route('/')
     def index():
@@ -872,7 +907,7 @@ def create_app() -> Flask:
         data = request.get_json()
         message = data.get('message', '')
         auto_pilot = data.get('auto_pilot', False)
-        result = ctrl.start_analysis(message, auto_pilot=auto_pilot)
+        result = ctrl.start_analysis(message, auto_pilot=auto_pilot, selected_inputs=data.get("selected_inputs"))
         return jsonify(result)
 
     @app.route('/api/updates')

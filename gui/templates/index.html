@@ -55,13 +55,13 @@ input,textarea,select{font-family:inherit;font-size:inherit}
 .sidebar-footer{padding:12px 16px;border-top:1px solid var(--border);font-size:12px;color:var(--text-dim);text-align:center}
 
 /* ── Data Panel ────────────────────────────────────────── */
-.data-panel{border-bottom:1px solid var(--border);flex-shrink:0;max-height:280px;overflow:hidden;transition:max-height 0.3s ease}
-.data-panel.collapsed{max-height:40px}
+.data-panel{border-bottom:1px solid var(--border);flex-shrink:0;overflow:hidden}
 .data-panel-header{padding:10px 20px;display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px;color:var(--text-dim);background:var(--bg-mid);border-bottom:1px solid var(--border);user-select:none}
+.data-panel-header::-webkit-details-marker{display:none}
 .data-panel-header:hover{color:var(--text)}
-.data-panel-header .toggle{margin-left:auto;transition:transform 0.3s ease;font-size:12px}
-.data-panel-header .toggle.collapsed{transform:rotate(-90deg)}
-.data-panel-body{padding:12px 20px;overflow-y:auto;max-height:240px}
+.data-panel-header .toggle{margin-left:auto;transition:transform 0.3s ease;font-size:12px;transform:rotate(-90deg)}
+.data-panel[open] .toggle{transform:rotate(0)}
+.data-panel-body{padding:12px 20px;overflow-y:auto;max-height:min(24vh,240px)}
 .data-file-card{background:var(--bg-mid);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px}
 .data-file-card .fname{color:var(--accent);font-weight:600;font-size:13px}
 .data-file-card .meta{color:var(--text-dim);font-size:12px;margin-top:4px}
@@ -187,11 +187,49 @@ input,textarea,select{font-family:inherit;font-size:inherit}
 /* ── Responsive ────────────────────────────────────────── */
 @media(max-width:1100px){.pipeline-panel{display:none}}
 @media(max-width:768px){.sidebar{display:none}}
+/* 结果直接展示，专业详情和分析过程按需展开。 */
+.chat-slot{flex:1;min-height:0;display:flex;flex-direction:column}
+.has-result .chat-slot{display:none}
+.mobile-new-chat{display:none;margin-left:auto;background:var(--accent-dim);color:white;padding:6px 10px;border-radius:6px;font-size:12px;white-space:nowrap}
+.input-tools button,.input-tools label{padding:7px 12px;background:var(--bg-hover);color:var(--text);border:1px solid var(--border-light);border-radius:6px;font-size:13px;cursor:pointer}
+.process-details{flex-shrink:0;border-top:1px solid var(--border);background:var(--bg-dark)}
+.process-details>summary{padding:10px 20px;cursor:pointer;color:var(--accent);font-size:13px}
+.process-content{max-height:42vh;overflow:auto;border-top:1px solid var(--border)}
+.process-record{min-width:0}
+.pipeline-panel .model-tag{padding:8px 16px;color:var(--text-dim);font-size:12px;overflow-wrap:anywhere}
+.process-record h3{padding:12px 20px 0;font-size:13px;color:var(--text-dim)}
+.process-record .messages{overflow:visible;min-height:0}
+.process-record .msg{max-width:100%}.msg>div:last-child{min-width:0}
+.conversation-archive{margin:0 20px 16px;border-top:1px solid var(--border);padding-top:12px}
+.conversation-archive>summary{cursor:pointer;color:var(--accent);font-size:13px}
+.conversation-archive .messages{padding:16px 0}
+.conversation-archive.hidden{display:none}
+.input-tools{display:flex;align-items:center;gap:10px;padding:10px 20px;flex-wrap:wrap;border-bottom:1px solid var(--border)}
+.input-tools span{font-size:12px;color:var(--text-dim);overflow-wrap:anywhere}
+.input-picker{max-height:220px;overflow:auto;padding:10px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
+.input-choice{display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px}
+.input-choice label{flex:1;overflow-wrap:anywhere}.input-choice button{background:transparent;color:var(--accent);padding:5px}
+.input-choice input{margin-right:8px}.input-thumbnail{max-height:180px;max-width:100%;object-fit:contain;margin:8px 0}
+.result-summary{flex:1;min-height:0;overflow:auto;padding:24px 28px;background:var(--bg-darkest)}
+.result-summary.hidden,.input-picker.hidden{display:none}
+.result-summary h2{font-size:24px;line-height:1.5;max-width:900px;margin:10px 0 18px}
+.result-summary h3{font-size:15px;margin:18px 0 8px}.result-summary p{max-width:900px;overflow-wrap:anywhere}
+.result-state{display:inline-block;border:1px solid var(--orange);color:#f0c46b;padding:3px 9px;border-radius:4px;font-size:12px}
+.result-images{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:18px 0}
+.result-images figure{min-width:0;background:var(--bg-dark);padding:10px;border:1px solid var(--border)}
+.result-images img{width:100%;max-height:440px;object-fit:contain;display:block}.result-images figcaption{font-size:12px;color:var(--text-dim);overflow-wrap:anywhere;margin-top:6px}
+.result-checks{border-left:3px solid var(--accent);padding:12px 16px;background:var(--bg-dark);margin:18px 0}
+.result-summary ul{padding-left:20px;line-height:1.9}.result-files{display:flex;gap:8px;flex-wrap:wrap}.result-files a{padding:6px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:4px;font-size:12px;overflow-wrap:anywhere;max-width:100%}
+.result-summary details{margin-top:22px;border-top:1px solid var(--border);padding-top:12px}.result-summary summary{cursor:pointer;color:var(--accent)}
+.result-summary pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.8 Consolas,'Microsoft YaHei',monospace;margin-top:12px;max-height:500px;overflow:auto}
+button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent-hover);outline-offset:3px}
+@media(max-width:768px){.mobile-new-chat{display:block}}
+@media(max-width:640px){.header{padding:10px 12px;gap:8px}.header .logo{font-size:14px}.header .logo span,.header .badge{display:none}.input-tools{padding:8px 12px}.result-summary{padding:18px 14px}.result-summary h2{font-size:20px}.result-images{grid-template-columns:1fr}.msg{max-width:100%}}
 </style>
 </head>
 <body>
 
-<div class="app">
+<div class="app" id="workspace">
   <!-- Left Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-header">
@@ -217,49 +255,71 @@ input,textarea,select{font-family:inherit;font-size:inherit}
         USRA_UP <span style="color:var(--text-dim);font-weight:400">遥感分析系统</span>
       </div>
       <span class="badge">v1.14</span>
-      <div class="model-tag">
-        <span class="dot"></span>
-        <span id="modelName">{{ model }}</span>
-      </div>
+      <button type="button" class="mobile-new-chat" onclick="newChat()">新建对话</button>
     </header>
 
-    <!-- Data Files Panel -->
-    <div class="data-panel" id="dataPanel">
-      <div class="data-panel-header">
-        <span onclick="toggleDataPanel()" style="flex:1;display:flex;align-items:center;gap:6px;">&#128193; DATA 目录文件扫描</span>
-        <button onclick="refreshData(event)" style="background:var(--accent-dim);color:#fff;border:none;padding:4px 10px;border-radius:var(--radius);font-size:11px;cursor:pointer;">&#128260; 刷新</button>
-        <span class="toggle" id="dataToggle" onclick="toggleDataPanel()">&#9660;</span>
-      </div>
+    <div class="input-tools">
+      <button type="button" onclick="loadInputFiles()">选择已有影像</button>
+      <label for="uploadInput">添加影像</label><input id="uploadInput" type="file" accept=".tif,.tiff" multiple onchange="uploadInputs(this)" hidden>
+      <span id="selectedInputText">选择数据，再用一句话说出想了解的内容。</span>
+    </div>
+    <div id="inputPicker" class="input-picker hidden" aria-label="选择本次使用的数据"></div>
+    <div id="inputPreview" class="input-picker hidden"></div>
+    <!-- 目录扫描独立放在对话区上方，默认收起。 -->
+    <details class="data-panel" id="dataPanel">
+      <summary class="data-panel-header">
+        <span style="flex:1;">&#128193; DATA 目录文件扫描</span>
+        <button type="button" onclick="refreshData(event)" style="background:var(--accent-dim);color:#fff;border:none;padding:4px 10px;border-radius:var(--radius);font-size:11px;cursor:pointer;">&#128260; 刷新</button>
+        <span class="toggle" aria-hidden="true">&#9660;</span>
+      </summary>
       <div class="data-panel-body" id="dataPanelBody">
         {{ data_html | safe }}
       </div>
-    </div>
+    </details>
 
     <!-- Chat Header -->
     <div class="chat-header">
-      <span class="title">&#128172; 对话面板</span>
+      <span class="title" id="chatTitle">对话面板</span>
       <div class="phase-tag">
         <span class="dot" id="phaseDot"></span>
         <span id="phaseName">就绪</span>
       </div>
     </div>
 
+    <section id="resultSummary" class="result-summary hidden" aria-label="本次分析结果" aria-live="polite"></section>
     <!-- Messages -->
-    <div class="messages" id="messages">
-      <div class="msg bot">
-        <div class="avatar">UP</div>
-        <div>
-          <div class="bubble">
-            欢迎使用 <strong>USRA_UP</strong> 遥感分析多智能体系统<br><br>
-            &#127758; 系统包含 7 个智能体协作完成遥感分析：<br>
-            &#128100; 用户输入 → &#128203; Manager 确认 → &#128300; Scientist 分析 → &#9881;&#65039; Engineer 编码 → &#9654;&#65039; Executor 执行 → &#128737;&#65039; supervisor 监督<br><br>
-            &#128228; 请在下方输入框描述您的遥感分析需求，或输入 <strong>auto</strong> 启用一键托管模式。<br>
-            &#128193; 请确保数据文件已放入 <code>data/</code> 目录。
+    <div class="chat-slot" id="chatSlot">
+      <div class="messages" id="messages">
+        <div class="msg bot">
+          <div class="avatar">UP</div>
+          <div>
+            <div class="bubble">
+              <strong>选择影像，告诉我你想了解什么。</strong><br><br>
+              例如：“看看建筑哪里变了”“标出图中的水面”“看看哪里比较热”。<br>
+              还没想好时，可以先选择数据并发送，我会先说明可以进行哪些分析。<br><br>
+              完成后会展示结果图、中文说明，以及哪些地方仍需要核实。
+            </div>
+            <div class="time">系统</div>
           </div>
-          <div class="time">系统</div>
         </div>
       </div>
+
     </div>
+
+    <!-- 分析过程折叠在此，最终结果仍直接显示在上方。 -->
+    <details id="processDetails" class="process-details">
+      <summary>查看分析过程与数据</summary>
+      <div class="process-content">
+        <div class="process-record">
+          <h3>方法与执行记录</h3>
+          <div class="messages" id="processMessages"></div>
+          <details id="conversationArchive" class="conversation-archive hidden">
+            <summary>查看本次对话</summary>
+            <div id="conversationRecord"></div>
+          </details>
+        </div>
+      </div>
+    </details>
 
     <!-- Status Bar -->
     <div class="status-bar">
@@ -270,27 +330,28 @@ input,textarea,select{font-family:inherit;font-size:inherit}
     <!-- Input Bar -->
     <div class="input-bar">
       <div class="input-wrapper">
-        <textarea id="chatInput" rows="1" placeholder="输入消息或描述分析需求... (approve 确认 / auto 一键托管 / end 终止)" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <textarea id="chatInput" rows="1" placeholder="例如：帮我看看这两幅图里建筑哪里发生了变化" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
         <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="发送">&#9650;</button>
       </div>
     </div>
 
     <!-- Action Buttons -->
     <div class="action-bar">
-      <button class="action-btn primary" id="autoBtn" onclick="sendAuto()" title="一键托管模式自动分析">&#9889; 一键托管</button>
+      <button class="action-btn primary" id="autoBtn" onclick="sendAuto()" title="目标明确后自动处理；未确定目标时先推荐可做的分析">&#9889; 自动分析</button>
       <button class="action-btn stop" id="stopBtn" onclick="sendStop()" title="强制终止当前会话">&#9209;&#65039; 强制终止</button>
-      <button class="action-btn success hidden" id="approveBtn" onclick="sendApprove()">&#10003; 确认</button>
+      <button class="action-btn success hidden" id="approveBtn" onclick="sendApprove()">&#10003; 确认开始</button>
       <button class="action-btn stop hidden" id="endBtn" onclick="sendEnd()">&#10007; 结束对话</button>
     </div>
   </div>
 
-  <!-- Right Pipeline Panel -->
-  <aside class="pipeline-panel">
+  <!-- 原有进度、追溯与导出 -->
+  <aside class="pipeline-panel" id="pipelinePanel" aria-label="分析管线">
     <div class="pipeline-header">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
       分析管线
     </div>
     <div class="pipeline-body">
+      <div class="model-tag">当前模型：<span id="modelName">{{ model }}</span></div>
 
       <!-- Pipeline Steps -->
       <div class="pipeline-steps">
@@ -399,22 +460,94 @@ const PHASE_NAMES = {
   'engineer': 'Engineer 编码',
   'executor': 'Executor 执行',
   'supervisor': 'supervisor 监督',
-  'done': '完成',
+  'done': '分析结束',
 };
 
-// ── Data Panel ─────────────────────────────────────────
-function toggleDataPanel() {
-  const panel = document.getElementById('dataPanel');
-  const toggle = document.getElementById('dataToggle');
-  panel.classList.toggle('collapsed');
-  toggle.classList.toggle('collapsed');
+// 简明结果与输入选择共用原轮询协议，刷新页面也能恢复结果。
+let selectedInputs = new Set();
+let inputsRestored = false;
+let deliveryFingerprint = null;
+
+function escapeAttr(value) {
+  return escapeHtml(String(value)).replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+}
+
+function renderDelivery(result) {
+  const fingerprint = JSON.stringify(result || null);
+  if (fingerprint === deliveryFingerprint) return;
+  deliveryFingerprint = fingerprint;
+  const panel = document.getElementById('resultSummary');
+  panel.classList.toggle('hidden', !result);
+  document.getElementById('workspace').classList.toggle('has-result', Boolean(result));
+  document.getElementById('chatTitle').textContent = result ? '本次结果' : '对话面板';
+  // 移动原节点以保留对话和全文展开按钮，不复制或丢弃历史。
+  document.getElementById(result ? 'conversationRecord' : 'chatSlot')
+    .appendChild(document.getElementById('messages'));
+  document.getElementById('conversationArchive').classList.toggle('hidden', !result);
+  if (!result) { panel.innerHTML = ''; return; }
+  const esc = value => escapeHtml(String(value || ''));
+  const list = values => '<ul>' + (values || []).map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>';
+  const safeFiles = (result.files || []).filter(x => typeof x.url === 'string' && x.url.startsWith('/api/result_file?path='));
+  const previews = (result.previews || []).filter(x => safeFiles.some(f => f.url === x.url && f.kind === 'image'));
+  const labels = {candidate: '候选结果 · 尚需核实', generated: '结果已生成 · 尚需核实', failed: '分析未完成', blocked: '缺少分析条件'};
+  panel.innerHTML = '<span class="result-state">' + esc(labels[result.completion] || '待核实') + '</span>' +
+    '<h2>' + esc(result.headline) + '</h2><p>你想了解：' + esc(result.goal) + '</p>' +
+    '<div class="result-checks"><p>' + esc(result.artifact_check) + '</p><p>' + esc(result.verification) + '</p></div>' +
+    '<div class="result-images">' + previews.map(x => '<figure><a href="' + escapeAttr(x.url) + '" target="_blank" rel="noopener"><img src="' + escapeAttr(x.url) + '" alt="本次结果图：' + escapeAttr(x.name) + '"></a><figcaption>' + esc(x.name) + '（点击放大）</figcaption></figure>').join('') + '</div>' +
+    (result.findings && result.findings.length ? '<h3>结果里记录了什么</h3>' + list(result.findings) : '') +
+    '<h3>需要留意</h3>' + list(result.limitations) + '<h3>接下来怎么办</h3><p>' + esc(result.next_step) + '</p>' +
+    '<h3>下载本次结果</h3><div class="result-files">' + safeFiles.map(x => '<a href="' + escapeAttr(x.url + '&download=1') + '">' + esc(x.name) + '</a>').join('') + '</div>' +
+    '<details id="professionalDetails"><summary>展开专业详情：方法、任务记录与检查依据</summary><pre>模型补充说明（以检查依据为准，尚未独立验证）：\n' +
+    esc(result.professional_report) + '\n\n机器检查依据：\n' + esc(result.professional_audit) + '\n\n' +
+    esc(JSON.stringify({task: result.task_contract, capability: result.capability}, null, 2)) + '</pre></details>';
+}
+
+function updateSelectedInputs() {
+  document.getElementById('selectedInputText').textContent = selectedInputs.size ?
+    '已选择 ' + selectedInputs.size + ' 幅影像：' + [...selectedInputs].map(x => x.split('/').pop()).join('、') :
+    '选择数据，再用一句话说出想了解的内容。';
+}
+
+function selectInput(input) {
+  if (isRunning) { input.checked = selectedInputs.has(input.value); return; }
+  if (input.checked) selectedInputs.add(input.value); else selectedInputs.delete(input.value);
+  updateSelectedInputs();
+}
+
+function loadInputFiles() {
+  if (isRunning) return;
+  const picker = document.getElementById('inputPicker');
+  picker.classList.remove('hidden');
+  picker.innerHTML = '正在读取本地影像列表…';
+  fetch('/api/input_files').then(r => r.json()).then(data => {
+    picker.innerHTML = (data.files || []).map(f => '<div class="input-choice"><label><input type="checkbox" value="' + escapeAttr(f.file_name) + '" onchange="selectInput(this)" ' + (selectedInputs.has(f.file_name) ? 'checked ' : '') + (!f.readable ? 'disabled ' : '') + '>' + escapeHtml(f.file_name) + ' <span>' + (f.readable ? f.width + ' × ' + f.height : '无法读取') + '</span></label><button data-path="' + escapeAttr(f.file_name) + '" onclick="previewInput(this.dataset.path)">预览</button></div>').join('') || '尚未找到TIFF影像，请先添加数据。';
+  }).catch(() => { picker.textContent = '文件列表读取失败，请重试。'; });
+}
+
+function previewInput(name) {
+  const panel = document.getElementById('inputPreview');
+  panel.classList.remove('hidden');
+  panel.innerHTML = '<p>文件预览：仅供选择数据，拉伸显示不代表分析结果。</p><img class="input-thumbnail" src="/api/input_preview?path=' + encodeURIComponent(name) + '" alt="影像缩略预览">';
+}
+
+function uploadInputs(input) {
+  if (isRunning || !input.files.length) return;
+  if (input.files.length > 8 || [...input.files].reduce((n, f) => n + f.size, 0) > 128 * 1024 * 1024) {
+    toast('每次最多8幅TIFF，总计不超过128MB。', 'info'); input.value = ''; return;
+  }
+  const body = new FormData();
+  [...input.files].forEach(file => body.append('files', file));
+  fetch('/api/upload_inputs', {method: 'POST', body}).then(r => r.json()).then(data => {
+    if (data.success) { (data.files || []).forEach(name => selectedInputs.add(name)); updateSelectedInputs(); loadInputFiles(); }
+    toast(data.message || '上传未完成，请检查文件。', data.success ? 'success' : 'info');
+  }).catch(() => toast('上传失败，请检查连接和文件大小。', 'info')).finally(() => { input.value = ''; });
 }
 
 // ── Chat ───────────────────────────────────────────────
-function addMsg(role, html, time, collapsible) {
-  const messagesEl = document.getElementById('messages');
+function addMsg(role, html, time, collapsible, technical) {
+  const messagesEl = document.getElementById(technical ? 'processMessages' : 'messages');
   const div = document.createElement('div');
-  div.className = 'msg ' + role;
+  div.className = 'msg ' + role + (technical ? ' technical-message' : '');
   const avatarMap = {'user': 'U', 'bot': 'UP', 'system': '&#9889;', 'error': '&#10007;'};
   const avatar = avatarMap[role] || 'UP';
   const t = time || new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'});
@@ -425,7 +558,8 @@ function addMsg(role, html, time, collapsible) {
   messagesEl.appendChild(div);
   if (collapsible && html) {
     const content = div.querySelector('.bubble-content');
-    if (content.scrollHeight > 240) {
+    // 折叠的过程区域尚无布局高度，长回复也要保留展开入口。
+    if (content.scrollHeight > 240 || html.length > 1000) {
       content.classList.add('collapsed');
       const toggle = document.createElement('button');
       toggle.type = 'button';
@@ -447,7 +581,7 @@ function addMsg(role, html, time, collapsible) {
 function sendMessage() {
   if (isRunning) return;
   const input = document.getElementById('chatInput');
-  const text = input.value.trim();
+  const text = input.value.trim() || (selectedInputs.size ? '请查看我选择的数据，推荐两三个可以进行的分析，先不要执行。' : '');
   if (!text) return;
   input.value = '';
   autoResize(input);
@@ -489,7 +623,8 @@ function sendToBackend(text, autoPilot) {
   fetch('/api/chat', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({message: text, auto_pilot: autoPilot})
+    body: JSON.stringify({message: text, auto_pilot: autoPilot,
+      selected_inputs: /^(approve|确认|yes|ok|end|exit|终止)$/i.test(text.trim()) ? undefined : [...selectedInputs]})
   })
   .then(r => r.json())
   .then(data => {
@@ -584,6 +719,12 @@ function pollUpdates() {
       }
       if (typeof data.cursor === 'number') lastEventSeq = Math.max(lastEventSeq, data.cursor);
       if (data.phase) updatePhase(data.phase);
+      if ('result_delivery' in data) renderDelivery(data.result_delivery);
+      if (!inputsRestored && Array.isArray(data.selected_inputs)) {
+        selectedInputs = new Set(data.selected_inputs);
+        inputsRestored = true;
+        updateSelectedInputs();
+      }
       setRunning(Boolean(data.running));
       if (data.status) {
         document.getElementById('statusText').textContent = data.status;
@@ -619,9 +760,10 @@ function processUpdates(updates) {
       else if (item.sender === 'SupervisorAgent') role = 'system';
       var content = item.auto_pilot ? '&#9889; 一键托管: ' + formatContent(item.content) : formatContent(item.content);
       addMsg(role, content, item.time,
-        item.sender !== 'User' && item.sender !== 'System');
+        item.sender !== 'User' && item.sender !== 'System',
+        ['Scientist', 'Engineer', 'Executor', 'SupervisorAgent'].includes(item.sender) || item.purpose === 'result_report');
     } else if (item.type === 'system') {
-      addMsg('system', '&#9889; ' + escapeHtml(item.content), item.time);
+      addMsg('system', '&#9889; ' + escapeHtml(item.content), item.time, false, true);
     } else if (item.type === 'error') {
       addMsg('error', '&#10007; ' + escapeHtml(item.content), item.time);
     }
@@ -653,7 +795,7 @@ function updatePhase(phase) {
     var statusEl = el.querySelector('.step-status');
     if (idx < currentIdx) {
       el.classList.add('done');
-      statusEl.textContent = '&#10003;';
+      statusEl.textContent = '✓';
     } else if (idx === currentIdx) {
       el.classList.add('active');
       statusEl.textContent = '...';
@@ -680,7 +822,7 @@ function toast(msg, type) {
 
 // ── Data Panel ─────────────────────────────────────────
 function refreshData(e) {
-  if (e) e.stopPropagation();
+  if (e) { e.preventDefault(); e.stopPropagation(); }
   fetch('/api/refresh_data', {method: 'POST'})
     .then(r => r.json())
     .then(function(data) {
@@ -704,6 +846,13 @@ function newChat() {
       pollGeneration += 1;
       pollInFlight = false;
       lastEventSeq = 0;
+      selectedInputs = new Set();
+      inputsRestored = false;
+      updateSelectedInputs();
+      renderDelivery(null);
+      document.getElementById('processMessages').innerHTML = '';
+      document.getElementById('processDetails').open = false;
+      document.getElementById('conversationArchive').open = false;
       var messagesEl = document.getElementById('messages');
       messagesEl.innerHTML = '';
       addMsg('bot', '新会话已开始，请输入遥感分析需求。');

@@ -5,6 +5,7 @@ from core.message import Message, MessageType
 from core.state_machine import ConversationPhase
 from tools.data_context import load_data_context, render_data_context
 from tools.result_audit import report_conflicts
+from tools.task_contract import ensure_task_contract, render_task_contract
 
 
 class ManagerAgent(BaseAgent):
@@ -42,7 +43,8 @@ class ManagerAgent(BaseAgent):
             event_type="data_preflight", agent=self.name,
             data={"snapshot": self.session.data_context},
         )
-        return prompt + "\n\n" + render_data_context(self.session.data_context) + (
+        ensure_task_contract(self.session)
+        return prompt + "\n\n" + render_data_context(self.session.data_context) + render_task_contract(self.session) + (
             "\n\n确认时区分：用户明确要求、已读取数据事实、系统限制、待确认假设。"
             "只用已核验文件判断能力；指定文件不存在/不可读时明确指出，不自动换用其他文件。"
             "若统计 ROI 未核实，说明采用影像有效区还是行政区，不能承诺完整行政区面积。"
@@ -75,6 +77,7 @@ class ManagerAgent(BaseAgent):
             self.session.state_machine.force_transition(ConversationPhase.SCIENTIST_ANALYSIS)
             # 确认动作只批准已记录的用户需求，不额外调用模型改写任务。
             self.session.confirmed_task = self._build_confirmed_task()
+            ensure_task_contract(self.session)
             return Message(
                 sender=self.name,
                 receiver="Scientist",
@@ -108,6 +111,9 @@ class ManagerAgent(BaseAgent):
                 "严格依据统计表比较全部类别，不得忽略其他类后声称植被占比最高。"
                 "自动阈值/打分映射不能描述为人工判读；数值计算真实不等于语义类别正确。"
                 "有待复核项时明确标为候选结果，不能用执行成功或文件生成代替精度验证。"
+                "先用两三句普通话回答发现了什么、在哪里、哪些尚不能确认；专业方法放到后面。"
+                "不得把文件检查通过称为识别准确，也不得把模型自评当作可信概率。"
+                + render_task_contract(self.session)
             )
             summary = self._call_llm(prompt)
             if summary.startswith("ERROR:"):
@@ -122,11 +128,16 @@ class ManagerAgent(BaseAgent):
                     summary = "模型报告与核验统计不一致，以下为核验后的结果说明：\n\n" + audit["facts"]
                 else:
                     summary += "\n\n" + audit.get("facts", "")
+            from tools.result_delivery import build_result_delivery, render_plain_delivery
+            from tools.io_kit import _get_project_root
+            delivery = build_result_delivery(self.session, _get_project_root(), report=summary)
+            self.session.result_delivery = delivery
             return Message(
                 sender=self.name,
                 receiver="User",
-                content=summary,
+                content=render_plain_delivery(delivery) + "\n\n[专业详情]\n" + summary,
                 msg_type=MessageType.TEXT,
+                metadata={"purpose": "result_report"},
             )
 
         # Supervisor 监督不通过，需要重做
