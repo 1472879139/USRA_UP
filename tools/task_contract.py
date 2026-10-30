@@ -5,16 +5,22 @@ import re
 
 TASK_LABELS = {"change": "前后变化分析", "segmentation": "地物识别", "cloud": "去云处理",
                "lst": "地表温度分析", "index": "地表指数分析", "general": "数据分析"}
+WATER_WORDS = r"水体|水面|水域|湖泊|河流"
+
+
+def _intent_text(text):
+    """文件名是数据引用，不能靠目录中的水域等字样猜用户分析目标。"""
+    return re.sub(r"(?:[A-Za-z]:)?(?:[\w.-]+[\\/])*[\w.-]+\.tiff?", " ", text, flags=re.I)
 
 
 def _task_type(text):
     # 排除简单否定句，复杂多目标需求仍保留原文交给规划阶段澄清。
-    text = re.sub(r"(?:不要|不做|无需|取消)[^，。；;\n]{0,25}", "", text)
+    text = re.sub(r"(?:不要|不做|无需|取消)[^，。；;\n]{0,25}", "", _intent_text(text))
     rules = [("lst", r"地表温度|温度|哪里.{0,3}热|哪里凉|\bLST\b"),
              ("cloud", r"去云|除云|云去除|云遮挡|云挡"),
              ("change", r"变化|前后对比|前后比较|change.detect"),
              ("index", r"\b(?:NDVI|NDWI|MNDWI|EVI|NBR|MSAVI)\b"),
-             ("segmentation", r"语义分割|分类|识别|提取|标出|找出|圈出|分布|标注|水体|建筑|道路|农田|森林")]
+             ("segmentation", r"语义分割|分类|识别|提取|标出|找出|圈出|分布|标注|建筑|道路|农田|森林|" + WATER_WORDS)]
     return next((name for name, pattern in rules if re.search(pattern, text, re.I)), None)
 
 
@@ -24,24 +30,46 @@ def build_task_contract(request, revisions, context, selected_inputs=None):
     kind = "general"
     inputs = []
     known = [f.get("file_name", "").replace("\\", "/") for f in context.get("files", [])]
+    aliases = {}
+    for name in known:
+        parent = name.rsplit("/", 1)[0] if "/" in name else ""
+        if parent:
+            aliases.setdefault(parent.rsplit("/", 1)[-1], set()).add(parent)
+    ambiguities = []
     for segment in segments:
         kind = _task_type(segment) or kind
         normalized = segment.replace("\\", "/")
         matches = []
+        mentioned = {alias for alias in aliases if re.search(
+            r"(?<![A-Za-z0-9_./-])" + re.escape(alias) + r"(?![A-Za-z0-9_./-])", normalized)}
+        segment_ambiguities = [alias for alias in mentioned if len(aliases[alias]) > 1 and
+                               not any(parent in normalized for parent in aliases[alias])]
         for name in known:
             parent = name.rsplit("/", 1)[0] if "/" in name else ""
-            explicit = "data/" + name in normalized or name in normalized
-            folder = parent and re.search(re.escape("data/" + parent) + r"(?=[/\s中里'\"`，。]|$)", normalized)
-            if explicit or folder:
+            explicit = re.search(r"(?<![A-Za-z0-9_./-])(?:data/)?" + re.escape(name) + r"(?![A-Za-z0-9_./-])", normalized)
+            folder = parent and re.search(r"(?<![A-Za-z0-9_./-])(?:data/)?" + re.escape(parent) + r"/?(?=[\s中里'\"`，。]|$)", normalized)
+            alias = parent.rsplit("/", 1)[-1] if parent else ""
+            bare_folder = alias in mentioned and len(aliases[alias]) == 1
+            if explicit or folder or bare_folder:
                 matches.append(name)
         if matches:
             inputs = matches
+            ambiguities = []
+        if segment_ambiguities:
+            inputs, ambiguities = [], segment_ambiguities
+    if (not inputs and not ambiguities and len(known) == 1 and
+            not re.search(r"data/|\.tiff?\b|[A-Za-z]+_\d+", "\n".join(segments), re.I)):
+        inputs = list(known)
     if selected_inputs:
         inputs = list(dict.fromkeys(selected_inputs))
+        ambiguities = []
     text = "\n".join(segments)
+    intent = _intent_text(text)
     return {"version": 1, "original_request": request, "revisions": list(revisions),
             "task_type": kind, "task_label": TASK_LABELS[kind], "inputs": inputs,
-            "targets": [name for name in ("建筑", "道路", "水体", "植被", "森林", "农田") if name in text],
+            "input_ambiguities": ambiguities,
+            "targets": [name for name in ("建筑", "道路", "水体", "植被", "森林", "农田")
+                        if (bool(re.search(WATER_WORDS, intent)) if name == "水体" else name in intent)],
             "needs_goal": text.strip().lower() in ("", "auto", "分析数据", "分析这些数据", "看看这些数据") or
                           (kind == "general" and bool(re.search(r"推荐.{0,12}(?:分析|用途)|先不要(?:执行|分析)", text))),
             "delivery_requirements": "中文结论、可查看的结果图、必要的数值结果；用户明确修改的输出要求优先。"}
@@ -53,6 +81,9 @@ def assess_capability(contract, context):
     names = contract["inputs"]
     chosen = [available[name] for name in names if name in available]
     reasons, blocked = [], False
+    if contract.get("input_ambiguities"):
+        reasons.append("数据目录名称重名，请在上方选择具体影像：" + "、".join(contract["input_ambiguities"]))
+        blocked = True
     if contract["needs_goal"]:
         reasons.append("请先选择想了解的内容，例如建筑变化、地物分布或地表温度。")
         blocked = True
@@ -91,6 +122,19 @@ def ensure_task_contract(session):
         session.user_request or session.confirmed_task, session.revision_feedback,
         session.data_context, session.selected_inputs)
     session.task_capability = assess_capability(session.task_contract, session.data_context)
+    if session.task_contract['task_type'] == 'lst':
+        from .lst_workflow import select_lst_tool
+        if select_lst_tool(session):
+            session.task_capability['reasons'] = [reason for reason in session.task_capability['reasons'] if '温度计算前' not in reason]
+            session.task_capability['reasons'].append('已核对Landsat 8辅助量、单位与热常数；地表温度误差仍需独立评价。')
+        else:
+            session.task_capability['status'] = 'blocked'
+            session.task_capability['reasons'].append('当前温度需求或输入不符合已安装工具条件，尚未完成。需要Landsat 8的热辐亮度、大气上下行辐亮度、透过率、发射率、QA_PIXEL及物理单位、MTL热常数说明；额外方法、气温、变化或输出要求暂不支持，不能用生成代码替代核验。')
+    if getattr(session, "tool_agent_options", {}).get("enabled"):
+        # 关键词只帮助记录需求；新路径的模型选择与物理条件由工具调用和工具自身检查。
+        session.task_capability = {"status": "needs_review", "semantic_verified": False,
+            "task_type": session.task_contract["task_type"],
+            "reasons": ["DeepSeek依据已批准数据和已安装工具选择步骤；每个工具单独检查适用条件，语义精度仍需独立评价。"]}
     if previous != session.task_contract:
         session.tracer.add_event("task_contract", agent="Manager",
                                  data={"contract": session.task_contract, "capability": session.task_capability},

@@ -1,0 +1,666 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "water_01",
+      "task": "binary",
+      "dataset": "ESWD",
+      "enabled": true,
+      "title": "水体提取",
+      "inputs": [
+        {
+          "path": "data/benchmark_suite_20261022/water_01/image.tif",
+          "sha256": "d87e80693c6eec78c31be06c2bb93551f73c8d4acc5e4300d3a59f63c08e038e"
+        }
+      ],
+      "metadata": {
+        "path": "data/benchmark_suite_20261022/water_01/metadata.json",
+        "sha256": "c4718b0ee1b9e4089e7536a5a8f66311a30b4079fe064788b713b12c9dbdfc0d"
+      },
+      "reference": {
+        "path": "water_01/water.tif",
+        "sha256": "7db74394dc7dc723c5fca29163a2f30bcf7d209c288d2d6c161cfdc5faf26116"
+      },
+      "extras": [],
+      "shape": [
+        697,
+        754
+      ],
+      "source": "https://zenodo.org/records/5205674",
+      "source_id": "dset-s2/val_scene/S2A_L2A_20190318_N0211_R061_6Bands_S1.tif",
+      "license_note": "CC-BY-4.0",
+      "limitation": "复用此前两幅已看过结果的公开验证样本，只作回归；固定指数基线由本地计算，不是WatNet作者预测",
+      "prompt": "帮我提取 data/benchmark_suite_20261022/water_01/image.tif 中的水体，给我水体分布图和水体占比。",
+      "comparison": "人工水体标签＋本地固定MNDWI>0基线",
+      "split": "已使用的回归样本",
+      "reference_encoding": "0=有效非水体，1=有效水体；忽略文件错误的NoData=0声明"
+    },
+    {
+      "id": "water_02",
+      "task": "binary",
+      "dataset": "ESWD",
+      "enabled": true,
+      "title": "水体提取",
+      "inputs": [
+        {
+          "path": "data/benchmark_suite_20261022/water_02/image.tif",
+          "sha256": "021043328abd2329534ad6ebadd3d3441f8d811c0ae00cc2732118fdbde7cea8"
+        }
+      ],
+      "metadata": {
+        "path": "data/benchmark_suite_20261022/water_02/metadata.json",
+        "sha256": "c4718b0ee1b9e4089e7536a5a8f66311a30b4079fe064788b713b12c9dbdfc0d"
+      },
+      "reference": {
+        "path": "water_02/water.tif",
+        "sha256": "a698d6263fb216375609cafe15534a4b1107a888116cdb214e54a41ac22f127b"
+      },
+      "extras": [],
+      "shape": [
+        575,
+        689
+      ],
+      "source": "https://zenodo.org/records/5205674",
+      "source_id": "dset-s2/val_scene/S2A_L2A_20190426_N0211_R053_6Bands_S1.tif",
+      "license_note": "CC-BY-4.0",
+      "limitation": "复用此前两幅已看过结果的公开验证样本，只作回归；固定指数基线由本地计算，不是WatNet作者预测",
+      "prompt": "帮我提取 data/benchmark_suite_20261022/water_02/image.tif 中的水体，给我水体分布图和水体占比。",
+      "comparison": "人工水体标签＋本地固定MNDWI>0基线",
+      "split": "已使用的回归样本",
+      "reference_encoding": "0=有效非水体，1=有效水体；忽略文件错误的NoData=0声明"
+    },
+    {
+      "id": "segment_01",
+      "task": "segmentation",
+      "dataset": "LoveDA",
+      "enabled": false,
+      "title": "语义分割",
+      "inputs": [
+        {
+          "path": "data/benchmark_suite_20261022/segment_01/image.tif",
+          "sha256": "b3297a661015f73338b84cb7e31cbde8c609c50a76f406f375ff2a94c9562bd7"
+        }
+      ],
+      "metadata": {
+        "path": "data/benchmark_suite_20261022/segment_01/metadata.json",
+        "sha256": "8c5bbda0c5703e4c0b26bd8607c5f5e744b5e075b0d3f4cd430b52cbff200f02"
+      },
+      "reference": {
+        "path": "segment_01/labels.png",
+        "sha256": "89a4e2e50f76638f343d6bee56e4fd6401edb2df5cedbfac1d7d76bd9c91a35d"
+      },
+      "extras": [],
+      "shape": [
+        1024,
+        1024
+      ],
+      "source": "https://github.com/Junjue-Wang/LoveDA",
+      "source_id": "Val/Rural/images_png/3018.png",
+      "license_note": "LoveDA作者限定学术使用，禁止商业使用；CC BY-NC-SA 4.0见作者数据说明",
+      "limitation": "公开验证集，每域一幅，不能代表城市/农村总体性能；无同样本外部预测栅格",
+      "prompt": "帮我把 data/benchmark_suite_20261022/segment_01/image.tif 中的建筑、道路、水体、裸地、森林、农田和其他背景分出来，给我分类图和各类占比。",
+      "comparison": "LoveDA人工标签；作者总体榜单仅供背景，不与两幅图直接排名",
+      "split": "流程样本；尚未接入自动评分",
+      "reference_encoding": "见原数据说明"
+    },
+    {
+      "id": "segment_02",
+      "task": "segmentation",
+      "dataset": "LoveDA",
+      "enabled": false,
+      "title": "语义分割",
+      "inputs": [
+        {
+          "path": "data/benchmark_suite_20261022/segment_02/image.tif",
+          "sha256": "4e9a3e8c516e2f16370fcda1a7b575d18fa0cad0e00f5623bfa2e985380702e6"
+        }
+      ],
+      "metadata": {
+        "path": "data/benchmark_suite_20261022/segment_02/metadata.json",
+        "sha256": "6ed8d51fd6c993c9575737f86d02a4d0d4481c7aa07956a42b4bbebc157ca164"
+      },
+      "reference": {
+        "path": "segment_02/labels.png",
+        "sha256": "a3665fdc2fd0200b1ef6c3897a0229898ba79bf5208c4bd3465fcb0b70ae203a"
+      },
+      "extras": [],
+      "shape": [
+        1024,
+        1024
+      ],
+      "source": "https://github.com/Junjue-Wang/LoveDA",
+      "source_id": "Val/Urban/images_png/3852.png",
+      "license_note": "LoveDA作者限定学术使用，禁止商业使用；CC BY-NC-SA 4.0见作者数据说明",
+      "limitation": "公开验证集，每域一幅，不能代表城市/农村总体性能；无同样本外部预测栅格",
+      "prompt": "帮我把 data/benchmark_suite_20261022/segment_02/image.tif 中的建筑、道路、水体、裸地、森林、农田和其他背景分出来，给我分类图和各类占比。",
+      "comparison": "LoveDA人工标签；作者总体榜单仅供背景，不与两幅图直接排名",
+      "split": "流程样本；尚未接入自动评分",
+      "reference_encoding": "见原数据说明"
+    },
+    {
+      "id": "change_01",
+      "task": "binary",
+      "dataset": "LEVIR-CD",
+      "enabled": false,
+      "title": "变化检测",
+      "inputs": [
+        {
+          "path": "data/benchmark_suite_20261022/change_01/before.tif",
+          "sha256": "fd1998799d081f09ef61558e61532cd0879d2d805a0af26be5b717b19ac63f3d"
+        },
+        {
+          "path": "data/benchmark_suite_20261022/change_01/after.tif",
+          "sha256": "a446caaa352e2c048615a76bf6dbfa448b291a66f7cd1879d26578c9d48368b5"
+        }
+      ],
+      "metadata": {
+        "path": "data/benchmark_suite_20261022/change_01/metadata.json",
+        "sha256": "fd52d91f7bcee0d8ee195f5bf74d34918de290499a60951ddc5e988a1c05d097"
+      },
+      "reference": {
+        "path": "change_01/change.png",
+        "sha256": "a4223b16cda4fda2bda583e4232603ad91a8700676d1a977401851fb746818ff"
+      },
+      "extras": [],
+      "shape": [
+        256,
+        256
+      ],
+      "source": "https://github.com/justchenhao/BIT_CD",
+      "source_id": "test_102_0512_0000.png",
+      "license_note": "LEVIR-CD仅学术用途，禁止商业使用，须遵守Google Earth原始影像使用条款",
+      "limitation": "作者公开演示裁片，适合流程测试，不是随机隐藏测试；无作者已发布预测栅格",
+      "prompt": "帮我找出 data/benchmark_suite_20261022/change_01 里 before.tif 到 after.tif 之间建筑发生变化的位置，并生成变化图。",
+      "comparison": "LEVIR-CD专家二值标签；本包无作者预测栅格",
+      "split": "流程样本；尚未接入自动评分",
+      "reference_encoding": "见原数据说明"
+    },
+    {
+      "id": "change_02",
+      "task": "binary",
+      "dataset": "LEVIR-CD",
+      "enabled": false,
+      "title": "变化检测",
+      "inputs": [
+        {
+          "path": "data/benchmark_suite_20261022/change_02/before.tif",
+          "sha256": "da5adfd753b6e9c856d9c6fda8d86299be95befee2614ff6143aac626dce9a44"
+        },
+        {
+          "path": "data/benchmark_suite_20261022/change_02/after.tif",
+          "sha256": "b72b4eab60a7ce27e531a59ae1fc72af8c634419af6de1c6d3ac66e8ad100ad7"
+        }
+      ],
+      "metadata": {
+        "path": "data/benchmark_suite_20261022/change_02/metadata.json",
+        "sha256": "166dbd5db265da76b9ebb768d163a2a7d274c2748b61d450a71de2ecfd9dcdd4"
+      },
+      "reference": {
+        "path": "change_02/change.png",
+        "sha256": "ce1fec32f2d6792ea3eddcea7861899c5985ccdfde61a179098694f28d927a3a"
+      },
+      "extras": [],
+      "shape": [
+        256,
+        256
+      ],
+      "source": "https://github.com/justchenhao/BIT_CD",
+      "source_id": "test_121_0768_0256.png",
+      "license_note": "LEVIR-CD仅学术用途，禁止商业使用，须遵守Google Earth原始影像使用条款",
+      "limitation": "作者公开演示裁片，适合流程测试，不是随机隐藏测试；无作者已发布预测栅格",
+      "prompt": "帮我找出 data/benchmark_suite_20261022/change_02 里 before.tif 到 after.tif 之间建筑发生变化的位置，并生成变化图。",
+      "comparison": "LEVIR-CD专家二值标签；本包无作者预测栅格",
+      "split": "流程样本；尚未接入自动评分",
+      "reference_encoding": "见原数据说明"
+    },
+    {
+      "id": "cloud_01",
+      "task": "restoration",
+      "dataset": "Sen2_MTC_New",
+      "enabled": false,
+      "title": "去云",
+      "inputs": [
+        {
+          "path": "data/benchmark_suite_20261022/cloud_01/cloudy_1.tif",
+          "sha256": "70a2f9f103b624b63e407f3e319b0e9116d29f2ae7be84953e254e4b71fe70de"
+        },
+        {
+          "path": "data/benchmark_suite_20261022/cloud_01/cloudy_2.tif",
+          "sha256": "c0cf6ab8fb65b1eaa031201e397bfa2d41a729520aab73a60428caf6742e1845"
+        },
+        {
+          "path": "data/benchmark_suite_20261022/cloud_01/cloudy_3.tif",
+          "sha256": "64b81a18a382774d391c67f66d33cfac8e47103da0aad260dfb844d2832d37cc"
+        }
+      ],
+      "metadata": {
+        "path": "data/benchmark_suite_20261022/cloud_01/metadata.json",
+        "sha256": "57ca45ea13d70afa887e7209fe93164c072f89b76e16213b5cd6989bcb4bf3a8"
+      },
+      "reference": {
+        "path": "cloud_01/cloudfree.png",
+        "sha256": "9be00ca09045e94fb3dd174fc76e8f638e608e9c06544836b41f4965cd2de2a7"
+      },
+      "extras": [
+        {
+          "path": "others/cloud_01/diffcr.png",
+          "sha256": "deb4f16bee5a27a7e9238bdb2a3237915b5601121ce5a9f7e6943465e3b6d83d",
+          "pack_relative": true
+        },
+        {
+          "path": "others/cloud_01/pmaa.png",
+          "sha256": "5f58879605370b9fcab4322550b45ec17426411fa6172c61b7888a867000bbf9",
+          "pack_relative": true
+        },
+        {
+          "path": "others/cloud_01/uncrtaints.png",
+          "sha256": "378f68d3825095cbc346d8b2d35478a2bf27b16a990b3ce88252fe3a58734bfe",
+          "pack_relative": true
+        }
+      ],
+      "shape": [
+        256,
+        256
+      ],
+      "source": "https://github.com/XavierJiezou/DiffCR",
+      "source_id": "T12TUR_R027_0",
+      "license_note": "发布页未标明明确数据许可证；保留原作者与原始数据来源，本包仅本地研究测试，不另行分发",
+      "limitation": "RGB重建小样本，不能替代多光谱/SAR去云；多时相无云目标存在自然变化，且无作者云掩膜，主评全图，不伪造云区成绩",
+      "prompt": "帮我用 data/benchmark_suite_20261022/cloud_01 里的三幅有云图像去云，尽量恢复真实地表，并给我恢复后的图像。",
+      "comparison": "无云目标＋作者发布的DiffCR、PMAA、UnCRtainTS同样本输出",
+      "split": "流程样本；尚未接入自动评分",
+      "reference_encoding": "见原数据说明"
+    },
+    {
+      "id": "cloud_02",
+      "task": "restoration",
+      "dataset": "Sen2_MTC_New",
+      "enabled": false,
+      "title": "去云",
+      "inputs": [
+        {
+          "path": "data/benchmark_suite_20261022/cloud_02/cloudy_1.tif",
+          "sha256": "392f4943cebd96de4215117677b022e334902deeadb66aeedcc931ab4a3f3755"
+        },
+        {
+          "path": "data/benchmark_suite_20261022/cloud_02/cloudy_2.tif",
+          "sha256": "816dc9a75bc80fabaae863987c72842f0ef7f41a41f6e2887b7fd75272dfad32"
+        },
+        {
+          "path": "data/benchmark_suite_20261022/cloud_02/cloudy_3.tif",
+          "sha256": "3f2cea30fe1c37cd09e28862d6d25c5567bb4f1caa1b8125f176b978bd2a4ff6"
+        }
+      ],
+      "metadata": {
+        "path": "data/benchmark_suite_20261022/cloud_02/metadata.json",
+        "sha256": "cb6ad65d59b922b7894558843f0c856484eed5957ef1d29094c5149093e07ca8"
+      },
+      "reference": {
+        "path": "cloud_02/cloudfree.png",
+        "sha256": "66769351c65ae38475ce76f7abe50bce681e9023f52ab8f8fecf55bdb4088609"
+      },
+      "extras": [
+        {
+          "path": "others/cloud_02/diffcr.png",
+          "sha256": "4583f7ff1a63638e32c965eefa68a2ae882bb647792e7b5b6d303afa05220f01",
+          "pack_relative": true
+        },
+        {
+          "path": "others/cloud_02/pmaa.png",
+          "sha256": "17c665816449aa07d03bca539b3255bb13f9007b871b93b4dba3356b47cf5d3b",
+          "pack_relative": true
+        },
+        {
+          "path": "others/cloud_02/uncrtaints.png",
+          "sha256": "9861af78131da5978a6b2a87005aa964431a4f92c87c653b54bd8d8ce98988ee",
+          "pack_relative": true
+        }
+      ],
+      "shape": [
+        256,
+        256
+      ],
+      "source": "https://github.com/XavierJiezou/DiffCR",
+      "source_id": "T41VMJ_R006_14",
+      "license_note": "发布页未标明明确数据许可证；保留原作者与原始数据来源，本包仅本地研究测试，不另行分发",
+      "limitation": "RGB重建小样本，不能替代多光谱/SAR去云；多时相无云目标存在自然变化，且无作者云掩膜，主评全图，不伪造云区成绩",
+      "prompt": "帮我用 data/benchmark_suite_20261022/cloud_02 里的三幅有云图像去云，尽量恢复真实地表，并给我恢复后的图像。",
+      "comparison": "无云目标＋作者发布的DiffCR、PMAA、UnCRtainTS同样本输出",
+      "split": "流程样本；尚未接入自动评分",
+      "reference_encoding": "见原数据说明"
+    },
+    {
+      "id": "lst_01",
+      "task": "regression",
+      "dataset": "USGS Landsat Collection2 Level2",
+      "enabled": false,
+      "title": "地表温度",
+      "inputs": [
+        {
+          "path": "data/benchmark_suite_20261022/lst_01/thermal_auxiliary.tif",
+          "sha256": "2a6c1a8a2b625811ab315d45d998c22c531b2ea5539c72b1f002d9ef2f3c622d"
+        }
+      ],
+      "metadata": {
+        "path": "data/benchmark_suite_20261022/lst_01/metadata.json",
+        "sha256": "fbb930a4adebf3e8709ceaaed5c3294850cd1a2495776a2393fff74b6be46a3c"
+      },
+      "reference": {
+        "path": "lst_01/usgs_lst_celsius.tif",
+        "sha256": "b15e98d7dffb08d5c255285ad28cf4db996599df699fe10b7bc71b1290fff991"
+      },
+      "extras": [
+        {
+          "path": "lst_01/clear_mask.npy",
+          "sha256": "3ad7d3cb59d83816e29485f2fc8451c86a01968e77d314310351b2d47c2d1e38"
+        }
+      ],
+      "shape": [
+        64,
+        64
+      ],
+      "source": "https://www.usgs.gov/landsat-missions/landsat-collection-2-surface-temperature",
+      "source_id": "LC08_L2SP_034032_20230828_02_T1",
+      "license_note": "USGS Landsat公开数据，保留USGS来源",
+      "limitation": "同源辅助量重建官方温度产品，评产品一致性，不是独立地面实测精度；不能据此宣称反演真实RMSE",
+      "prompt": "帮我根据 data/benchmark_suite_20261022/lst_01 里的数据计算地表温度，给我摄氏度温度图和温度统计。",
+      "comparison": "USGS官方L2地温产品；仅检验产品一致性，不是独立精度",
+      "split": "温度流程与同源产品一致性样本；非独立地面实测",
+      "reference_encoding": "已转换为摄氏度浮点值，NaN为缺测",
+      "assessment_enabled": true,
+      "reference_unit": "degC",
+      "evaluation_mask": {
+        "path": "lst_01/clear_mask.npy",
+        "sha256": "3ad7d3cb59d83816e29485f2fc8451c86a01968e77d314310351b2d47c2d1e38"
+      }
+    },
+    {
+      "id": "water_03",
+      "task": "binary",
+      "dataset": "ESWD",
+      "enabled": true,
+      "title": "水体提取",
+      "inputs": [
+        {
+          "path": "data/benchmark_suite_20261025/water_03/image.tif",
+          "sha256": "4020e0d8f7f66c0b0cde1da6f91820ae8afeb0a5d70fbcb985e06f582cb3b7c3"
+        }
+      ],
+      "metadata": {
+        "path": "data/benchmark_suite_20261025/water_03/metadata.json",
+        "sha256": "69625d010c6163f9058961de0fdc00aa9369a200d5f1739d8d48c1c9937797aa"
+      },
+      "reference": {
+        "path": "water_03/water.tif",
+        "sha256": "c5d7439c47d309dabe34fb8f780283e388c134004ad60281d405a87d0f965ab6"
+      },
+      "extras": [],
+      "shape": [
+        910,
+        986
+      ],
+      "source": "https://zenodo.org/records/5205674",
+      "source_id": "dset-s2/val_scene/S2A_L2A_20190429_N0211_R096_6Bands_S1.tif",
+      "license_note": "CC-BY-4.0（沿用原下载清单；仅准备本地研究资料，不提交原始数据）",
+      "limitation": "本批首次评测场景；与开发样本按采集前缀分离。首次查看结果后按回归样本使用；同数据集小样本不能代表跨数据集泛化。",
+      "prompt": "帮我提取water_03里的水体，告诉我有多少。",
+      "comparison": "作者人工标签；固定MNDWI>0，不是WatNet作者预测",
+      "split": "2026-10-25新增场景",
+      "batch": "holdout_20261025",
+      "reference_encoding": "0=有效非水体，1=有效水体；本批准备标签不把0写成NoData",
+      "frozen_protocol_sha256": "0e05aa4f9226d8a35bcb34f64f40113ee7c88bc27b659743cd7164f716843b4b"
+    },
+    {
+      "id": "water_04",
+      "task": "binary",
+      "dataset": "ESWD",
+      "enabled": true,
+      "title": "水体提取",
+      "inputs": [
+        {
+          "path": "data/benchmark_suite_20261025/water_04/image.tif",
+          "sha256": "9f39de5ee43749668e7930d59c14c60ede61cbd2d5ee796976eee27e4edaa9df"
+        }
+      ],
+      "metadata": {
+        "path": "data/benchmark_suite_20261025/water_04/metadata.json",
+        "sha256": "2fcdc424dec6d2b8b9a4879f6fe40d316127621d0a49f485a681774e4b95724e"
+      },
+      "reference": {
+        "path": "water_04/water.tif",
+        "sha256": "b3e87b229dfe3404f60c9fd94b730ad5a2f3b4a7f35cde0335148a9fc6966ac2"
+      },
+      "extras": [],
+      "shape": [
+        878,
+        948
+      ],
+      "source": "https://zenodo.org/records/5205674",
+      "source_id": "dset-s2/val_scene/S2A_L2A_20190518_N0212_R073_6Bands_S1.tif",
+      "license_note": "CC-BY-4.0（沿用原下载清单；仅准备本地研究资料，不提交原始数据）",
+      "limitation": "本批首次评测场景；与开发样本按采集前缀分离。首次查看结果后按回归样本使用；同数据集小样本不能代表跨数据集泛化。",
+      "prompt": "帮我提取water_04里的水体，告诉我有多少。",
+      "comparison": "作者人工标签；固定MNDWI>0，不是WatNet作者预测",
+      "split": "2026-10-25新增场景",
+      "batch": "holdout_20261025",
+      "reference_encoding": "0=有效非水体，1=有效水体；本批准备标签不把0写成NoData",
+      "frozen_protocol_sha256": "0e05aa4f9226d8a35bcb34f64f40113ee7c88bc27b659743cd7164f716843b4b"
+    },
+    {
+      "id": "water_05",
+      "task": "binary",
+      "dataset": "ESWD",
+      "enabled": true,
+      "title": "水体提取",
+      "inputs": [
+        {
+          "path": "data/benchmark_suite_20261025/water_05/image.tif",
+          "sha256": "3c09ec185d192ddd7f6b118868310609ef8a94767a97573f18b2431aaa241377"
+        }
+      ],
+      "metadata": {
+        "path": "data/benchmark_suite_20261025/water_05/metadata.json",
+        "sha256": "d6ad4692a2e2cb51b2f368b21110384fe0a7a88d8dc8d0467fc127f92aaa5537"
+      },
+      "reference": {
+        "path": "water_05/water.tif",
+        "sha256": "69989593cf35ae509272f09d8c9a871f443475552dfbba84e2ef1a871b8119a0"
+      },
+      "extras": [],
+      "shape": [
+        1019,
+        1071
+      ],
+      "source": "https://zenodo.org/records/5205674",
+      "source_id": "dset-s2/val_scene/S2B_L2A_20190303_N0211_R065_6Bands_S1.tif",
+      "license_note": "CC-BY-4.0（沿用原下载清单；仅准备本地研究资料，不提交原始数据）",
+      "limitation": "本批首次评测场景；与开发样本按采集前缀分离。首次查看结果后按回归样本使用；同数据集小样本不能代表跨数据集泛化。",
+      "prompt": "帮我提取water_05里的水体，告诉我有多少。",
+      "comparison": "作者人工标签；固定MNDWI>0，不是WatNet作者预测",
+      "split": "2026-10-25新增场景",
+      "batch": "holdout_20261025",
+      "reference_encoding": "0=有效非水体，1=有效水体；本批准备标签不把0写成NoData",
+      "frozen_protocol_sha256": "0e05aa4f9226d8a35bcb34f64f40113ee7c88bc27b659743cd7164f716843b4b"
+    },
+    {
+      "id": "water_06",
+      "task": "binary",
+      "dataset": "ESWD",
+      "enabled": true,
+      "title": "水体提取",
+      "inputs": [
+        {
+          "path": "data/benchmark_suite_20261025/water_06/image.tif",
+          "sha256": "8601e13720735b6bad3ff2acb5c40a7bbb7399c0880e2cbc1c655f583944163c"
+        }
+      ],
+      "metadata": {
+        "path": "data/benchmark_suite_20261025/water_06/metadata.json",
+        "sha256": "3cc53887003238d013c8006b6f9368fd20be6164077b36b5cb1c413eea603edd"
+      },
+      "reference": {
+        "path": "water_06/water.tif",
+        "sha256": "4778a6ff40f6b46b9ff9b4c822775a35d4b07e68dc2c606ef7e936e678f23232"
+      },
+      "extras": [],
+      "shape": [
+        1014,
+        1051
+      ],
+      "source": "https://zenodo.org/records/5205674",
+      "source_id": "dset-s2/val_scene/S2B_L2A_20191015_N0213_R007_6Bands_S1.tif",
+      "license_note": "CC-BY-4.0（沿用原下载清单；仅准备本地研究资料，不提交原始数据）",
+      "limitation": "本批首次评测场景；与开发样本按采集前缀分离。首次查看结果后按回归样本使用；同数据集小样本不能代表跨数据集泛化。",
+      "prompt": "帮我提取water_06里的水体，告诉我有多少。",
+      "comparison": "作者人工标签；固定MNDWI>0，不是WatNet作者预测",
+      "split": "2026-10-25新增场景",
+      "batch": "holdout_20261025",
+      "reference_encoding": "0=有效非水体，1=有效水体；本批准备标签不把0写成NoData",
+      "frozen_protocol_sha256": "0e05aa4f9226d8a35bcb34f64f40113ee7c88bc27b659743cd7164f716843b4b"
+    },
+    {
+      "id": "water_07",
+      "task": "binary",
+      "dataset": "ESWD",
+      "enabled": true,
+      "title": "水体提取",
+      "inputs": [
+        {
+          "path": "data/benchmark_suite_20261026/water_07/image.tif",
+          "sha256": "64ddfbe6047fa6cee13431c7da211853c2313181f94443baf81db725bfb0b5ac"
+        }
+      ],
+      "metadata": {
+        "path": "data/benchmark_suite_20261026/water_07/metadata.json",
+        "sha256": "b1eb667d566f3f1760a3d1bdae5a62a2dec1c108751dd72476e43c7b4f99ca4f"
+      },
+      "reference": {
+        "path": "water_07/water.tif",
+        "sha256": "9b339782dccd5a3466dd6e8090119eb673297c843774cffa0fcf8711e3350af8"
+      },
+      "extras": [],
+      "shape": [
+        916,
+        987
+      ],
+      "source": "https://zenodo.org/records/5205674",
+      "source_id": "dset-s2/val_scene/S2A_L2A_20190508_N0212_R078_6Bands_S1.tif",
+      "license_note": "CC-BY-4.0（沿用原下载清单；仅准备本地研究资料，不提交原始数据）",
+      "limitation": "本批首次评测场景；与开发样本按采集前缀分离。首次查看结果后按回归样本使用；同数据集小样本不能代表跨数据集泛化。",
+      "prompt": "帮我提取water_07里的水体，告诉我有多少。",
+      "comparison": "作者人工标签；两种候选方法与冻结输入选路，不是WatNet预测",
+      "split": "2026-10-26新增场景",
+      "batch": "holdout_20261026",
+      "reference_encoding": "0=有效非水体，1=有效水体；本批准备标签不把0写成NoData",
+      "frozen_protocol_sha256": "e982f02bc7f48a21469725ec224c36aa9fe31fa4f2f6390b4fe397020f6ce950"
+    },
+    {
+      "id": "water_08",
+      "task": "binary",
+      "dataset": "ESWD",
+      "enabled": true,
+      "title": "水体提取",
+      "inputs": [
+        {
+          "path": "data/benchmark_suite_20261026/water_08/image.tif",
+          "sha256": "a0b03a4ef8c2d430152a4c4680c42b7db187700f690f32fa42fe72e0c7984d55"
+        }
+      ],
+      "metadata": {
+        "path": "data/benchmark_suite_20261026/water_08/metadata.json",
+        "sha256": "35b64dc516c98bc47736c386e3a5f957dbcfe136f1522b6c32697b648d7da4e8"
+      },
+      "reference": {
+        "path": "water_08/water.tif",
+        "sha256": "204afd94e1fd068f707dec6b7143207b681739f9fe12a56ff9feb3e051b52678"
+      },
+      "extras": [],
+      "shape": [
+        1037,
+        1130
+      ],
+      "source": "https://zenodo.org/records/5205674",
+      "source_id": "dset-s2/val_scene/S2A_L2A_20190724_N0213_R033_6Bands_S1.tif",
+      "license_note": "CC-BY-4.0（沿用原下载清单；仅准备本地研究资料，不提交原始数据）",
+      "limitation": "本批首次评测场景；与开发样本按采集前缀分离。首次查看结果后按回归样本使用；同数据集小样本不能代表跨数据集泛化。",
+      "prompt": "帮我提取water_08里的水体，告诉我有多少。",
+      "comparison": "作者人工标签；两种候选方法与冻结输入选路，不是WatNet预测",
+      "split": "2026-10-26新增场景",
+      "batch": "holdout_20261026",
+      "reference_encoding": "0=有效非水体，1=有效水体；本批准备标签不把0写成NoData",
+      "frozen_protocol_sha256": "e982f02bc7f48a21469725ec224c36aa9fe31fa4f2f6390b4fe397020f6ce950"
+    },
+    {
+      "id": "water_09",
+      "task": "binary",
+      "dataset": "ESWD",
+      "enabled": true,
+      "title": "水体提取",
+      "inputs": [
+        {
+          "path": "data/benchmark_suite_20261026/water_09/image.tif",
+          "sha256": "b8cfbbfd70f6055021406b7c793e7697389e50bacb73c8072a1af754d43b4b56"
+        }
+      ],
+      "metadata": {
+        "path": "data/benchmark_suite_20261026/water_09/metadata.json",
+        "sha256": "341df14f7b890407c69b655551ea878f056ec8f86bea359c5330159ba14a16f7"
+      },
+      "reference": {
+        "path": "water_09/water.tif",
+        "sha256": "b15b7362dac55fd4cbb00b3e6b6fd67bb47bf3ee584b0b7450fd7e1563e89e0e"
+      },
+      "extras": [],
+      "shape": [
+        601,
+        686
+      ],
+      "source": "https://zenodo.org/records/5205674",
+      "source_id": "dset-s2/val_scene/S2A_L2A_20190725_N0213_R054_6Bands_S1.tif",
+      "license_note": "CC-BY-4.0（沿用原下载清单；仅准备本地研究资料，不提交原始数据）",
+      "limitation": "本批首次评测场景；与开发样本按采集前缀分离。首次查看结果后按回归样本使用；同数据集小样本不能代表跨数据集泛化。",
+      "prompt": "帮我提取water_09里的水体，告诉我有多少。",
+      "comparison": "作者人工标签；两种候选方法与冻结输入选路，不是WatNet预测",
+      "split": "2026-10-26新增场景",
+      "batch": "holdout_20261026",
+      "reference_encoding": "0=有效非水体，1=有效水体；本批准备标签不把0写成NoData",
+      "frozen_protocol_sha256": "e982f02bc7f48a21469725ec224c36aa9fe31fa4f2f6390b4fe397020f6ce950"
+    },
+    {
+      "id": "water_10",
+      "task": "binary",
+      "dataset": "ESWD",
+      "enabled": true,
+      "title": "水体提取",
+      "inputs": [
+        {
+          "path": "data/benchmark_suite_20261026/water_10/image.tif",
+          "sha256": "7a0a1d89fd9def8c2831096a3718594f32f490879f30c6eb24172aa80e987e70"
+        }
+      ],
+      "metadata": {
+        "path": "data/benchmark_suite_20261026/water_10/metadata.json",
+        "sha256": "fb7e197300a3ae95788df5480ef6832109e12780e25d48d2e0525896fa5680a4"
+      },
+      "reference": {
+        "path": "water_10/water.tif",
+        "sha256": "adc1287d5cd0cc6764f3f7bbe84d7e8a63eb9c2922e98e94789a242b3b460312"
+      },
+      "extras": [],
+      "shape": [
+        1246,
+        1351
+      ],
+      "source": "https://zenodo.org/records/5205674",
+      "source_id": "dset-s2/val_scene/S2B_L2A_20190620_N0212_R047_6Bands_S1.tif",
+      "license_note": "CC-BY-4.0（沿用原下载清单；仅准备本地研究资料，不提交原始数据）",
+      "limitation": "本批首次评测场景；与开发样本按采集前缀分离。首次查看结果后按回归样本使用；同数据集小样本不能代表跨数据集泛化。",
+      "prompt": "帮我提取water_10里的水体，告诉我有多少。",
+      "comparison": "作者人工标签；两种候选方法与冻结输入选路，不是WatNet预测",
+      "split": "2026-10-26新增场景",
+      "batch": "holdout_20261026",
+      "reference_encoding": "0=有效非水体，1=有效水体；本批准备标签不把0写成NoData",
+      "frozen_protocol_sha256": "e982f02bc7f48a21469725ec224c36aa9fe31fa4f2f6390b4fe397020f6ce950"
+    }
+  ]
+}

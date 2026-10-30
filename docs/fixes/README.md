@@ -1,7 +1,50 @@
 # 修改记录：核验修复与普通用户结果交付
 
+- [FIX-027：GitHub分工发布、开发者配置与运行说明](2026-10-30-027-github-developer-setup.html)
+- [两分支拉取、DeepSeek/GPU配置、样例与维护职责](../developer-setup.md)
+
+- [FIX-025：自主调度、隔离代码修复、数据适配与逐项验收](2026-10-29-025-autonomous-agent.html)
+- [启动、16工具、文件变化、验证与限制](../autonomous-agent.md)
+
+- [FIX-024：DeepSeek整行调用状态与短请求计数留痕](2026-10-28-024-deepseek-activity-visibility.html)
+- [本批接口、验证与完整重启命令](../deepseek-activity-visibility.md)
+
+- [FIX-023：真实组合任务复核与DeepSeek实际使用状态](2026-10-28-023-deepseek-activity.html)
+- [本批接口、验证、限制和重启说明](../deepseek-activity.md)
+
+- [FIX-022：DeepSeek工具调用循环、工具组合与任务核验](2026-10-28-022-deepseek-tool-agent.html)
+- [本批启动、工具清单、共享接口及验证边界](../deepseek-tool-agent.md)
+
+- [FIX-021：统一Agent入口、TerraMind常驻服务与通俗分类交付](2026-10-28-021-agent-capability-integration.html)
+- [整合版启动、输入条件、文件变化与验证](../agent-capability-integration.md)
+- [FIX-020：保留现有diffusers并按实际接口核验](2026-10-28-020-diffusers-capability-check.html)
+- [FIX-019：TerraMind生成地物候选图与封存后独立评价](2026-10-28-019-terramind-landcover.html)
+- [FIX-018：TerraMind Small编码器固定权重部署](2026-10-27-018-terramind-small-deploy.html)
+
+- [FIX-013：地表温度工具、普通结果与封存后产品一致性评价](2026-10-26-013-lst-agent.html)
+- [FIX-013支持条件、逐文件变化与一句话测试](../lst-agent.md)
+
+- [FIX-017：临时执行进程导入失败、固定工具确认与失败解释](2026-10-27-017-executor-project-import.html)
+
+- [FIX-016：启动提示编码与页面/GPU实际就绪检查](2026-10-27-016-launcher-text-and-ready.html)
+
+- [FIX-015：GPU服务启动引用旧模块，v2修复与启动入口回归](2026-10-27-015-prithvi-service-startup.html)
+
+- [FIX-014：远程Prithvi工具与无答案分歧检查（独立预览分支）](2026-10-27-014-prithvi-remote-agent.html)
+- [FIX-014部署、输入契约、角色接口及限制](../prithvi-remote-agent.md)
+
 - [从GitHub源码到当前本地版本：累计图文总览](2026-10-23-source-to-current-overview.html)
 - [完整累计修改记录与逐文件清单](../source-to-current-changelog.md)
+- [FIX-008：固定水体工具与独立验收基础](2026-10-25-008-validated-water-benchmark.html)
+- [FIX-008范围、启动与评分说明](../validated-benchmarks.md)
+- [FIX-009：对话水体工具接入、逐幅核验与评价](2026-10-25-009-water-agent-integration.html)
+- [FIX-009接口、启动与验证说明](../validated-water-agent.md)
+- [FIX-010：新场景首次评测、话术稳定性与质量提示](2026-10-25-010-water-generalization.html)
+- [FIX-010数据、逐文件变化与测试方法](../water-generalization-validation.md)
+- [FIX-011：普通分析不读答案、交卷后独立评价](2026-10-26-011-blind-assessment.html)
+- [FIX-011实现、测试方法与隔离边界](../blind-assessment.md)
+- [FIX-012：两种水体方法、输入选路与新场景验收](2026-10-26-012-water-method-library.html)
+- [FIX-012完整结果、文件变化与实验方法](../water-method-library.md)
 
 FIX-004从已核验的GitHub主分支main（eabcb1488c2e32a8fdc4c22c82e2d85316a025e1）重新开始。本地先前的11个已修改文件与6个新增修复文件已撤回并另行备份，下载数据、现有结果、导出的测试资料和本地配置共133个文件在恢复时逐文件校验未变。此前FIX-001～003不属于这次重建后的源码。FIX-005继续记录普通用户结果交付的第一批实现。
 

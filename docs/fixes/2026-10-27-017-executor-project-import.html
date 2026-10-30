@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FIX-017 · 真实执行进程找不到项目工具</title>
+<style>
+:root{--paper:#f3f4ee;--panel:#fffefb;--ink:#19343c;--muted:#53666a;--line:#d4ded8;--teal:#096c66;--wash:#e5f1e9;--amber:#89521c;--warn:#fff0db;--red:#a83e34;--font:"Microsoft YaHei","Segoe UI",sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.75 var(--font)}header,main,nav{width:min(1160px,calc(100% - 40px));margin:auto}header{display:flex;justify-content:space-between;gap:16px;padding:20px 0;font-size:13px;color:var(--muted)}a{color:var(--teal);text-underline-offset:4px}main{background:var(--panel);border:1px solid var(--line);border-radius:14px}.slide{padding:30px 38px;min-height:710px;display:none}.slide.active{display:block}.eyebrow{color:var(--teal);font-size:13px;letter-spacing:.08em;font-weight:bold}h1{font-size:40px;line-height:1.35;letter-spacing:-.03em}h2{font-size:30px;line-height:1.4}h1,h2{margin:12px 0 20px}h3{font-size:19px;margin:4px 0 10px}p{margin:12px 0}.lede{color:var(--muted);font-size:18px}.note{padding:14px 18px;background:var(--warn);border-left:4px solid var(--amber);border-radius:4px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:18px 0}.card{padding:18px 22px;border:1px solid var(--line);border-radius:10px}.bad{background:#fbede8;border-color:#e3c5ba}.good{background:var(--wash)}.metric{font-size:52px;font-weight:bold;color:var(--teal);line-height:1.3}.small,figcaption{font-size:13px;color:var(--muted)}figure{margin:20px 0}svg{display:block;width:100%;height:auto;font-family:var(--font)}table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:11px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;overflow-wrap:anywhere}th{background:var(--wash)}pre{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;padding:16px 18px;background:var(--ink);color:#fff;border-radius:8px;font:14px/1.75 Consolas,var(--font)}code{font-family:Consolas,var(--font);overflow-wrap:anywhere}nav{padding:18px 0 24px;display:flex;gap:16px;justify-content:center;align-items:center}button,select{font:inherit;padding:7px 12px;border:1px solid var(--line);background:var(--panel);border-radius:6px;color:var(--ink)}button{cursor:pointer}button:disabled{opacity:.35;cursor:default}:focus-visible{outline:3px solid var(--teal);outline-offset:3px}.footer{margin-top:22px;padding-top:12px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}ol{padding-left:24px}li{margin:8px 0}
+@media(max-width:740px){header,main,nav{width:calc(100% - 24px)}header{font-size:12px}.slide{padding:22px 20px;min-height:0}h1{font-size:29px}h2{font-size:26px}.grid{grid-template-columns:1fr}.lede{font-size:16px}table{font-size:12px}th,td{padding:9px 7px}nav{gap:8px;flex-wrap:wrap}button,select{font-size:13px}select{max-width:172px}.metric{font-size:42px}pre{font-size:12px}}
+@media print{header,nav{display:none}.slide,.slide.active{display:block;min-height:0;break-before:page}main{width:100%;border:0}body{background:white}.grid{grid-template-columns:1fr 1fr}h1{font-size:30px}}
+</style>
+<noscript><style>.slide{display:block}nav{display:none}</style></noscript>
+</head>
+<body>
+<header><span>USRA_UP / FIX-017 / 2026-10-27</span><a href="index.html">全部修复记录</a></header>
+<main>
+<section class="slide active" id="cause" aria-labelledby="title-cause">
+<span class="eyebrow">01 / 真实任务诊断</span>
+<h1 id="title-cause">任务停在本机，<br>还没有把影像发给4090D</h1>
+<p class="lede">“本次分析未完成”来自执行器导入项目工具失败。此次没有分析产物，不能据此判断模型识别效果。</p>
+<figure>
+<svg viewBox="0 0 1040 210" role="img" aria-label="需求确认和固定脚本生成成功，临时执行进程导入失败，GPU尚未请求">
+<g stroke-width="2"><rect x="5" y="35" width="222" height="125" rx="12" fill="#e5f1e9" stroke="#096c66"/><rect x="282" y="35" width="222" height="125" rx="12" fill="#e5f1e9" stroke="#096c66"/><rect x="559" y="35" width="222" height="125" rx="12" fill="#fbede8" stroke="#a83e34"/><rect x="836" y="35" width="199" height="125" rx="12" fill="#f3f4ee" stroke="#d4ded8"/></g>
+<g text-anchor="middle" fill="#19343c" font-size="22"><text x="116" y="87">需求确认</text><text x="116" y="124" font-size="18">已完成</text><text x="393" y="87">生成固定脚本</text><text x="393" y="124" font-size="18">已完成</text><text x="670" y="87">临时执行进程</text><text x="670" y="124" font-size="18" fill="#a83e34">找不到 tools</text><text x="935" y="87">4090D 推理</text><text x="935" y="124" font-size="18">尚未请求</text></g>
+<g fill="#096c66"><path d="M239 90 H260 V80 L278 97 L260 114 V104 H239Z"/><path d="M516 90 H537 V80 L555 97 L537 114 V104 H516Z"/></g><path d="M801 77 L819 117 M819 77 L801 117" stroke="#a83e34" stroke-width="3"/>
+</svg><figcaption>根据本次执行记录绘制的流程图，不是模型效果图。</figcaption>
+</figure>
+<pre>from tools.prithvi_workflow import run_remote_workflow
+ModuleNotFoundError: No module named 'tools'</pre>
+<p>Python从 <code>temp/</code> 启动脚本时，默认导入位置是脚本所在目录。原执行器虽然把工作目录设成项目根目录，却没有补上项目模块搜索路径。这是本次客户端集成遗漏。</p>
+<p class="note">GPU服务健康检查成功，只能证明服务已启动；无法覆盖本机临时脚本这一执行边界。</p>
+</section>
+<section class="slide" id="changes" aria-labelledby="title-changes">
+<span class="eyebrow">02 / 对应修复</span><h2 id="title-changes">修执行入口，也让说明符合实际能力</h2>
+<table><thead><tr><th>文件</th><th>之前</th><th>现在</th></tr></thead><tbody>
+<tr><td><a href="../../agents/executor_agent.py">agents/executor_agent.py</a></td><td>临时脚本无法导入项目工具</td><td>仅对子进程补充项目根目录，保留已有PYTHONPATH</td></tr>
+<tr><td><a href="../../agents/manager_agent.py">agents/manager_agent.py</a><br><a href="../../tools/prithvi_workflow.py">tools/prithvi_workflow.py</a></td><td>模型生成的确认计划承诺了取交集和换算面积，实际固定工具没有执行这些步骤</td><td>匹配固定工具时，直接说明实际方法和输出；额外面积等需求仍走原规划路径</td></tr>
+<tr><td><a href="../../tools/result_delivery.py">tools/result_delivery.py</a></td><td>导入错误也笼统建议用户改需求或补数据</td><td>识别此类本机工具导入失败，说明停止位置及重启步骤；保持失败状态</td></tr>
+<tr><td><a href="../../tests/test_prithvi_remote.py">tests/test_prithvi_remote.py</a></td><td>未覆盖临时脚本真实执行边界</td><td>新增4项回归，覆盖真实子进程、确认内容、额外需求及失败解释</td></tr>
+</tbody></table>
+<div class="grid"><div class="card bad"><h3>原失败说明</h3><p>本次分析未完成，没有可确认的最终结果。</p><p class="small">请调整需求或补充缺少的数据后再试。</p></div><div class="card good"><h3>此类故障的新说明</h3><p>本机分析工具未能启动，本次没有影像分析结果。</p><p class="small">请重启更新后的本机预览版，再使用同一影像发起新任务。</p></div></div>
+<p class="small">以上为失败说明前后示意。成功输出仍以Prithvi完整候选为主结果，指数单独对照；不擅自取交集，不编造准确率。未改模型权重、阈值、环境、真实配置或prompts目录文件。</p>
+</section>
+<section class="slide" id="verification" aria-labelledby="title-verification">
+<span class="eyebrow">03 / 本轮实际验证</span><h2 id="title-verification">回归覆盖真实执行边界</h2>
+<div class="grid"><div class="card good"><div class="metric">151</div><h3>Python测试通过</h3><p class="small">完整离线回归，包含真实子进程和模拟HTTP</p></div><div class="card good"><div class="metric">22</div><h3>界面测试通过</h3><p class="small">Node回归；git diff --check也通过</p></div></div>
+<table><thead><tr><th>新回归</th><th>修复前</th><th>修复后</th></tr></thead><tbody>
+<tr><td>固定包装脚本通过真实Executor子进程调用工具，并核验产物</td><td>实际复现：找不到tools</td><td>通过；模拟模型收到1次请求，生成候选图和核验记录</td></tr>
+<tr><td>固定工具的确认内容与方法、输出一致</td><td>实际失败：允许错误的交集、面积承诺</td><td>通过；固定说明不依赖模型自由改写</td></tr>
+<tr><td>用户额外要求真实面积时保留原规划路径</td><td>原路径可用</td><td>通过；未被默认水体工具覆盖</td></tr>
+<tr><td>本机tools导入失败说明具体原因</td><td>实际失败：只有泛泛标题和补数据建议</td><td>通过；明确本机故障，没有伪装成功或交付旧文件</td></tr>
+</tbody></table>
+<p class="note">测试使用临时合成影像与模拟GPU，真实执行了Windows子进程、HTTP协议、制图及产物核验。本轮未发起真实4090D影像推理、DeepSeek请求或参考答案评分；工程回归通过不等于识别精度提升。</p>
+<div class="footer">本地测试日志：exports/qa/fix017-python-tests.log。日志和布局截图留在忽略目录，旧任务、旧产物与旧修复记录保留。</div>
+</section>
+<section class="slide" id="restart" aria-labelledby="title-restart">
+<span class="eyebrow">04 / 重新测试</span><h2 id="title-restart">只重启本机7861预览版</h2>
+<ol><li>在显示 <code>Running on http://127.0.0.1:7861</code> 的本机窗口按 <code>Ctrl+C</code>。GPU服务窗口与两个SSH中转窗口继续保持开启。</li><li>在Windows PowerShell执行：</li></ol>
+<pre>&amp; "C:\Users\17995\.codex\worktrees\prithvi-remote-agent\USRA_UP\exports\启动远程水体预览.cmd"</pre>
+<p>打开 <a href="http://127.0.0.1:7861">本机预览页面</a>，新建对话，选择 <code>prithvi_demo/USA_66511/image.tif</code>，输入：</p>
+<pre>帮我圈出这张影像里的水体，告诉我大概占多少。</pre>
+<p>确认后应看到候选水体图、指数对照、分歧范围和比例说明。执行结束后还要检查实际任务是否收到GPU返回、是否生成本次产物，再评价内容是否合理。原失败任务保留，不把它改写成成功。</p>
+<p class="note">这是客户端修复，已有GPU v2服务包无需重新上传或重装。磁盘代码已更新，正在运行的旧客户端仍需重启才能加载修复。</p>
+<div class="footer">本地分支：codex/prithvi-remote-agent；起点2115157，未fetch。未提交、未推送、未创建PR、未审批、未合并。桌面原工作区及其未提交功能未改动，仍需后续整合验证。<br><a href="2026-10-27-016-launcher-text-and-ready.html">FIX-016历史就绪检查</a> · <a href="../prithvi-remote-agent.md">使用范围与限制</a></div>
+</section>
+</main>
+<nav aria-label="幻灯片翻页"><button id="prev" type="button">上一页</button><span id="counter" aria-live="polite">1 / 4</span><select id="jump" aria-label="跳转页面"><option value="0">01 失败在哪里</option><option value="1">02 修复了什么</option><option value="2">03 实际验证</option><option value="3">04 如何重新测试</option></select><button id="next" type="button">下一页</button></nav>
+<script>
+(()=>{const slides=[...document.querySelectorAll('.slide')],prev=document.getElementById('prev'),next=document.getElementById('next'),jump=document.getElementById('jump'),counter=document.getElementById('counter');let current=0;
+function show(index){current=Math.max(0,Math.min(slides.length-1,index));slides.forEach((slide,i)=>slide.classList.toggle('active',i===current));prev.disabled=current===0;next.disabled=current===slides.length-1;jump.value=String(current);counter.textContent=`${current+1} / ${slides.length}`;history.replaceState(null,'','#'+slides[current].id);window.scrollTo(0,0)}
+prev.onclick=()=>show(current-1);next.onclick=()=>show(current+1);jump.onchange=()=>show(Number(jump.value));document.addEventListener('keydown',event=>{if(['INPUT','TEXTAREA','SELECT'].includes(event.target.tagName))return;if(event.key==='ArrowRight'){event.preventDefault();show(current+1)}if(event.key==='ArrowLeft'){event.preventDefault();show(current-1)}});const initial=slides.findIndex(slide=>'#'+slide.id===location.hash);show(initial<0?0:initial)})();
+</script>
+</body></html>

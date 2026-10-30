@@ -54,6 +54,9 @@ class ExecutorAgent(BaseAgent):
                 msg_type=MessageType.ERROR,
             )
 
+        if message.metadata.get("tool_agent_request"):
+            from tools.tool_agent_workflow import execute_message
+            return execute_message(self, message)
         code = message.content
 
         # 安全检查
@@ -162,7 +165,14 @@ class ExecutorAgent(BaseAgent):
             _conda_prefix = os.path.dirname(sys.executable)
             _conda_library = os.path.join(_conda_prefix, "Library")
             env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+            # 临时脚本位于temp/，sys.path不会自动包含项目源码根目录。
+            source_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            existing_pythonpath = env.get("PYTHONPATH", "")
+            env["PYTHONPATH"] = source_root + (os.pathsep + existing_pythonpath if existing_pythonpath else "")
             env["URSA_RESULTS_DIR"] = os.path.abspath(task_dir)
+            # 临时脚本的sys.path[0]是temp/，仅设置cwd不足以导入项目工具。
+            # 只对子进程补充当前项目路径，并保留已有PYTHONPATH。
+            env["PYTHONPATH"] = os.pathsep.join(filter(None, [self._project_root, env.get("PYTHONPATH", "")]))
             if os.path.isdir(_conda_library):
                 env["CONDA_PREFIX"] = _conda_prefix
                 _gdal_data = os.path.join(_conda_library, "share", "gdal")

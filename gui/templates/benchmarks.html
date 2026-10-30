@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>USRA_UP · 验收测试</title>
+<style>
+:root{--ink:#162d42;--muted:#566b7d;--line:#d9e3e9;--blue:#0866bb;--paper:#f3f7fa}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.65 "Microsoft YaHei",system-ui,sans-serif}a{color:var(--blue)}header{background:#fff;border-bottom:1px solid var(--line);padding:15px max(20px,calc((100vw - 1140px)/2));display:flex;justify-content:space-between;gap:20px}main{max-width:1180px;margin:auto;padding:32px 20px 64px}h1{font-size:34px;line-height:1.3;margin:12px 0}h2{font-size:24px;margin:8px 0 16px}h3{font-size:18px;margin:0}p{margin:10px 0}.eyebrow{font-size:13px;letter-spacing:2px;color:var(--blue);font-weight:700}.lede{max-width:840px;color:var(--muted)}.steps{display:flex;flex-wrap:wrap;gap:12px;margin:28px 0}.steps span{background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 18px}.panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:24px;margin-top:22px;min-width:0}.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.card{border:1px solid var(--line);border-radius:8px;padding:18px;min-width:0}.muted{color:var(--muted);font-size:14px}.tag{display:inline-block;padding:2px 8px;border-radius:5px;background:#e9f4ff;color:#075994;font-size:13px}.warning{background:#fff6df;border-left:4px solid #ce9416;padding:14px 18px;margin:18px 0;overflow-wrap:anywhere}.status{padding:10px 0;color:var(--muted)}button{background:var(--blue);color:#fff;border:0;border-radius:6px;font:inherit;font-weight:600;padding:10px 16px;cursor:pointer;margin-top:10px}button:disabled{opacity:.5;cursor:wait}button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #e39b16;outline-offset:3px}details{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}summary{cursor:pointer;font-weight:600}.case-row{padding:14px 0;border-bottom:1px solid var(--line)}.case-row p{margin:4px 0}.metric-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0}.metric{border:1px solid var(--line);padding:16px;border-radius:8px}.metric strong{display:block;font-size:30px;color:var(--blue)}.images{display:grid;gap:20px}.images img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:8px}.downloads{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}.downloads a{padding:7px 12px;border:1px solid var(--line);border-radius:5px;overflow-wrap:anywhere}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--paper);padding:16px;font:13px/1.6 monospace}.prompt{padding:12px;background:var(--paper);font-size:14px;overflow-wrap:anywhere}ul{padding-left:22px}li{margin:6px 0}[hidden]{display:none!important}@media(max-width:650px){header{padding:12px 16px;font-size:13px}main{padding:24px 14px 44px}h1{font-size:28px}.panel{padding:18px}.cards,.metric-grid{grid-template-columns:1fr}.steps span{padding:7px 10px;font-size:13px}.metric strong{font-size:26px}}
+</style>
+</head>
+<body>
+<header><strong>USRA_UP / 验收测试</strong><a href="/">返回分析对话</a></header>
+<main>
+<div class="eyebrow">固定方法验收 · 公开测试样本</div>
+<h1>这次处理的结果，<br>与已知答案差多少？</h1>
+<p class="lede">先运行固定水体方法，再独立读取人工答案评分。你可以直接看找对、误报和漏检的位置；不需要先理解所有参数。</p>
+<div class="steps" aria-label="验收步骤"><span>① 核对输入和答案</span><span>② 固定方法生成预测</span><span>③ 逐像元独立评分</span><span>④ 看图与误差解释</span></div>
+<div class="warning">本页独立测试固定水体方法，不调用 DeepSeek。案例含既有回归样本与本批新增场景；首次评价结果查看后即作为回归使用。普通对话可调用同一工具，其他方向按各自能力逐步接入。</div>
+<section class="panel" aria-labelledby="casesTitle">
+<h2 id="casesTitle">先跑一次有答案的水体测试</h2>
+<p class="muted">方法冻结为 MNDWI &gt; 0，不按答案调参。使用下方按钮即可，无需填参数。</p>
+<div id="catalogStatus" class="status" role="status" aria-live="polite">正在检查本机文件完整性…</div>
+<div id="caseCards" class="cards"></div>
+<details><summary>其他任务的数据与答案是否齐全？</summary><div id="allCases"></div></details>
+<p class="muted">换电脑时，需要单独复制输入、answers 和作者对照材料，并修改 benchmark.local.json。源码不包含影像和答案。</p>
+</section>
+<section id="resultPanel" class="panel" hidden aria-labelledby="resultTitle">
+<div class="eyebrow" id="resultScope"></div><h2 id="resultTitle"></h2>
+<p id="runIdentity" class="muted"></p><ul id="findings"></ul>
+<div id="metricCards" class="metric-grid"></div>
+<div id="incompleteWarning" class="warning" hidden>预测存在缺测，评分不完整。下列指标将缺测按错误计入，避免删除难像元后产生虚高分数。</div>
+<div class="images"><img id="previewImage" alt="输入影像与蓝色水体候选图"><img id="comparisonImage" alt="人工答案与误差图：绿色找对，橙色误报，紫色漏检，灰色缺测"></div>
+<p class="muted">白色背景为非水体。橙色越多表示把非水体误认为水体，紫色越多表示水体被漏掉；两种错误都需要看。</p>
+<p id="nextStep"></p><div class="downloads" id="downloads"></div>
+<details><summary>展开专业指标、方法与限制</summary><ul id="limitations"></ul><p>这些指标只属于本次案例，不是系统在所有遥感任务上的总分。没有统一的“80分即合格”判断线。</p><pre id="professionalReport"></pre></details>
+</section>
+</main>
+<script>
+let busy = false;
+const el = id => document.getElementById(id);
+function node(tag, text, className) { const n = document.createElement(tag); if(text !== undefined) n.textContent = text; if(className) n.className = className; return n; }
+function percent(value) { return value === null || value === undefined ? '无法计算' : (value * 100).toFixed(1) + '%'; }
+async function loadCases() {
+  try {
+    const response = await fetch('/api/benchmarks');
+    if (!response.ok) throw new Error('文件检查请求失败');
+    const data = await response.json();
+    el('catalogStatus').textContent = data.configuration_error || (data.reference_configured ? '已检查 ' + data.cases.length + ' 个案例。检查通过表示文件完整，处理效果还需要下面的评分。' : '尚未配置答案目录：请按 benchmark.example.json 创建本地 benchmark.local.json。');
+    el('caseCards').replaceChildren(); el('allCases').replaceChildren();
+    for (const item of data.cases) {
+      const row = node('div', undefined, 'case-row');
+      row.append(node('strong', item.id + ' · ' + item.title), node('p', '输入：' + (item.inputs_ok ? '完整' : '缺失或有变化') + '；答案：' + (item.reference_ok ? '完整' : '缺失或有变化') + '；辅助对照：' + (item.extras_ok ? '完整或无需' : '缺失或有变化'), 'muted'), node('p', item.enabled ? '已接入固定水体工具与自动评分；' + item.split : item.assessment_enabled ? '已接入普通对话温度工具；完成后前往答卷页独立评价产品一致性，本页水体基线不适用。' : '只核对文件；尚未接入工具和自动评分。', 'muted'));
+      const detail = node('details'); detail.append(node('summary', '查看检查依据与来源'));
+      for (const check of item.checks) detail.append(node('p', (check.ok ? '✓ ' : '✗ ') + check.path + '：' + check.message, 'muted'));
+      detail.append(node('p', item.limitation, 'muted'));
+      const source = node('a', '公开数据来源'); source.href = item.source; source.target = '_blank'; source.rel = 'noopener'; detail.append(source);
+      detail.append(node('p', '许可备注（沿用原下载清单）：' + item.license_note, 'muted'));
+      row.append(detail); el('allCases').append(row);
+      if (!item.enabled) continue;
+      const card = node('article', undefined, 'card');
+      card.append(node('span', item.split || '公开回归样本', 'tag'), node('h3', item.id + ' · ' + item.dataset), node('p', item.runnable ? '输入与人工答案已配对，可以运行。' : '文件不满足评分条件，请展开完整性检查。', 'muted'));
+      card.append(node('p', '普通对话可用的一句话：', 'muted'), node('p', item.prompt, 'prompt'));
+      const button = node('button', '运行固定水体基线并独立评分'); button.type = 'button'; button.disabled = !item.runnable; button.dataset.runnable = String(item.runnable); button.addEventListener('click', () => runCase(item.id)); card.append(button); el('caseCards').append(card);
+    }
+  } catch (error) { el('catalogStatus').textContent = '检查失败：' + error.message; }
+}
+function renderReport(report) {
+  el('resultScope').textContent = report.evaluation_scope;
+  el('resultTitle').textContent = report.headline;
+  el('runIdentity').textContent = report.case_id + ' · 本次产物：' + report.result_directory;
+  for (const [id, values] of [['findings', report.findings], ['limitations', report.limitations]]) { el(id).replaceChildren(...values.map(text => node('li', text))); }
+  el('metricCards').replaceChildren();
+  for (const [label, value, help] of [['标出的有多少是对的', report.scores.precision, '专业名称：精确率 Precision'], ['真实水体找到了多少', report.scores.recall, '专业名称：召回率 Recall'], ['综合两种错误的指标', report.scores.f1, '专业名称：F1；不是系统总分']]) { const card = node('div', undefined, 'metric'); card.append(node('span', label), node('strong', percent(value)), node('span', help, 'muted')); el('metricCards').append(card); }
+  el('incompleteWarning').hidden = report.scores.status !== 'incomplete';
+  const url = name => '/api/benchmarks/artifact/' + encodeURIComponent(report.run_id) + '/' + encodeURIComponent(name);
+  el('previewImage').src = url('preview.png'); el('comparisonImage').src = url('comparison.png');
+  el('downloads').replaceChildren();
+  for (const [name, label] of [['water_mask.tif', '分类栅格'], ['mndwi.tif', '指数栅格'], ['statistics.csv', '统计表'], ['report.json', '完整验收报告']]) { const link = node('a', label); link.href = url(name); el('downloads').append(link); }
+  el('nextStep').textContent = report.next_step;
+  el('professionalReport').textContent = JSON.stringify(report, null, 2);
+  el('resultPanel').hidden = false;
+}
+async function runCase(caseId) {
+  if (busy) return;
+  busy = true; for (const button of document.querySelectorAll('#caseCards button')) button.disabled = true;
+  el('resultPanel').hidden = true; el('catalogStatus').textContent = '正在运行 ' + caseId + '：生成预测 → 检查网格 → 独立读取答案评分。请稍候…';
+  try {
+    const response = await fetch('/api/benchmarks/run', {method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({case_id: caseId})});
+    const data = await response.json();
+    if (!response.ok || !data.success) throw new Error(data.message || '运行失败');
+    renderReport(data.report); el('catalogStatus').textContent = '本次处理与评分已完成；请查看下面的误报、漏检与对照图。';
+    el('resultPanel').scrollIntoView({behavior:'smooth',block:'start'});
+  } catch (error) { el('catalogStatus').textContent = error.message; }
+  finally { busy = false; for (const button of document.querySelectorAll('#caseCards button')) button.disabled = button.dataset.runnable !== 'true'; }
+}
+loadCases();
+</script>
+</body></html>

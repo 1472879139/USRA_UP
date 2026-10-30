@@ -82,12 +82,13 @@ function makePage({ messageHeight = 0 } = {}) {
   const context = vm.createContext({
     document,
     fetch(url, options) {
-      let resolve;
-      const promise = new Promise(r => { resolve = r; });
-      requests.push({ url, options, resolve: data => resolve({ json: async () => data }) });
+      let resolve, reject;
+      const promise = new Promise((r, j) => { resolve = r; reject = j; });
+      requests.push({ url, options, resolve: data => resolve({ json: async () => data }), reject });
       return promise;
     },
-    setInterval() {
+    setInterval(callback, delay) {
+      assert.equal(delay, 500);
       const id = ++nextTimer;
       activeTimers.add(id);
       return id;
@@ -393,6 +394,22 @@ test('相同轮询快照保留展开状态和原对话按钮事件', () => {
   assert.equal(button.textContent, '收起');
 });
 
+test('多图结果分别展示并转义文本，图片必须属于本次白名单', () => {
+  const page = makePage();
+  const file = {name: 'water.png', kind: 'image', url: '/api/result_file?path=task%2Fwater.png'};
+  page.context.renderDelivery({completion: 'candidate', headline: '逐幅结果', files: [file], previews: [file],
+    scene_results: [{label: 'water_01 <script>', findings: ['面积0.57；只找到13%'], preview: file},
+      {label: 'water_02', findings: ['面积11.49；找到97%'], preview: {url: 'https://example.invalid/not-current.png'}}]});
+  const html = page.elements.get('resultSummary').innerHTML;
+  assert.ok(html.includes('water_01 &lt;script&gt;'));
+  assert.ok(html.includes('只找到13%'));
+  assert.ok(html.includes('water_02'));
+  assert.ok(html.includes('找到97%'));
+  assert.ok(!html.includes('src="https://example.invalid'));
+  assert.ok(!html.includes('href="https://example.invalid'));
+  assert.equal((html.match(/<img /g) || []).length, 1);
+});
+
 test('过程关闭时收到的长回复仍可完整展开', () => {
   const page = makePage({messageHeight: 0});
   const text = '完整分析方案'.repeat(300);
@@ -453,4 +470,144 @@ test('分析过程收起时右侧管线仍接收进度监督和追溯更新', as
   assert.equal(page.elements.get('phaseName').textContent, 'Engineer 编码');
   assert.equal(page.elements.get('monitorBox').innerHTML, '<p>正在检查本次任务</p>');
   assert.equal(page.elements.get('traceBody').innerHTML, '<tr><td>本次执行记录</td></tr>');
+});
+
+test('温度结果直接展示摄氏度和图示，专业内容按需展开', () => {
+  const page = makePage();
+  page.context.renderDelivery({completion: 'candidate', headline: '已生成地表温度图',
+    verification: '温度误差尚未验证', findings: [], limitations: [],
+    files: [{name: 'final_lst_preview.png', url: '/api/result_file?path=current.png', kind: 'image'}], previews: [],
+    scene_results: [{label: '温度影像', findings: ['平均27.5℃，相对高温不是危险等级。'],
+      preview: {name: 'final_lst_preview.png', url: '/api/result_file?path=current.png', kind: 'image'}}],
+    professional_report: '热常数K1/K2', professional_audit: '固定辐射传输公式'});
+  const html = page.elements.get('resultSummary').innerHTML;
+  assert.ok(html.includes('平均27.5℃'));
+  assert.ok(html.includes('/api/result_file?path=current.png'));
+  assert.ok(html.includes('<details'));
+  assert.ok(!html.includes('<details open'));
+  assert.ok(!html.includes('水体'));
+});
+
+
+test('页面刷新能恢复正在使用DeepSeek的标志与等待时间', async () => {
+  const page = makePage();
+  page.requests[0].resolve({updates: [], running: true, done: false,
+    llm_activity: {active: true, agent: 'DeepSeek工具Agent', elapsed_seconds: 7, request_count: 1}});
+  await flushPromises();
+  assert.equal(page.elements.get('deepseekStatusText').textContent, 'DeepSeek正在调用');
+  assert.ok(page.elements.get('deepseekStatusDetail').textContent.includes('7秒'));
+  assert.equal(page.elements.get('deepseekStatus').getAttribute('aria-busy'), 'true');
+  assert.equal(page.elements.get('deepseekStatus').classList.contains('busy'), true);
+});
+
+test('执行工具时不把一般运行状态当成DeepSeek正在调用', async () => {
+  const page = makePage();
+  page.requests[0].resolve({updates: [], running: true, done: false, llm_activity: {active: false}});
+  await flushPromises();
+  assert.equal(page.elements.get('deepseekStatusText').textContent, 'DeepSeek待命');
+  assert.equal(page.elements.get('deepseekStatus').classList.contains('busy'), false);
+  assert.equal(page.elements.get('stopBtn').disabled, false);
+});
+
+test('请求结束或任务终止会撤下等待动画', async () => {
+  const page = makePage();
+  page.requests[0].resolve({updates: [], running: true, done: false, llm_activity: {active: true}});
+  await flushPromises();
+  vm.runInContext('pollUpdates()', page.context);
+  page.requests[1].resolve({updates: [], running: false, done: true, status: '已终止', llm_activity: {active: false}});
+  await flushPromises();
+  assert.equal(page.elements.get('deepseekStatus').classList.contains('busy'), false);
+  assert.equal(page.elements.get('deepseekStatusText').textContent, 'DeepSeek待命');
+});
+
+test('新会话清除旧模型请求标志', async () => {
+  const page = makePage();
+  page.requests[0].resolve({updates: [], running: true, done: false, llm_activity: {active: true}});
+  await flushPromises();
+  vm.runInContext('newChat()', page.context);
+  page.requests.find(x => x.url === '/api/new_chat').resolve({success: true});
+  await flushPromises();
+  assert.equal(page.elements.get('deepseekStatus').getAttribute('aria-busy'), 'false');
+  assert.equal(page.elements.get('deepseekStatusDetail').textContent, '');
+});
+
+test('轮询断开时明确状态未知并能在恢复后更新', async () => {
+  const page = makePage();
+  page.requests[0].reject(new Error('模拟断开'));
+  await flushPromises();
+  assert.equal(page.elements.get('deepseekStatusText').textContent, 'DeepSeek状态待确认');
+  vm.runInContext('pollUpdates()', page.context);
+  page.requests[1].resolve({updates: [], running: true, done: false, llm_activity: {active: true, agent: 'Manager', elapsed_seconds: 2}});
+  await flushPromises();
+  assert.equal(page.elements.get('deepseekStatusText').textContent, 'DeepSeek正在调用');
+  assert.equal(page.elements.get('deepseekStatus').classList.contains('unknown'), false);
+});
+
+test('状态文字不注入模型文本且兼容没有新字段的响应', async () => {
+  const page = makePage();
+  page.requests[0].resolve({updates: [], running: true, done: false,
+    llm_activity: {active: true, agent: '<script>bad()</script>', elapsed_seconds: -3}});
+  await flushPromises();
+  assert.ok(!page.elements.get('deepseekStatusDetail').innerHTML.includes('<script>'));
+  vm.runInContext('pollUpdates()', page.context);
+  page.requests[1].resolve({updates: [], running: true, done: false});
+  await flushPromises();
+  assert.equal(page.elements.get('deepseekStatusText').textContent, 'DeepSeek待命');
+});
+
+
+test('首次轮询前短请求已结束仍能看到本轮次数', async () => {
+  const page = makePage();
+  page.requests[0].resolve({updates: [], running: true, done: false,
+    llm_activity: {active: false, total_requests: 1, finished_requests: 1}});
+  await flushPromises();
+  assert.equal(page.elements.get('deepseekStatusText').textContent, 'DeepSeek本轮已调用 1 次');
+  assert.equal(page.elements.get('deepseekStatus').classList.contains('busy'), false);
+  assert.equal(page.elements.get('deepseekStatus').classList.contains('called'), true);
+});
+
+test('任务结束及刷新保留累计次数但不继续转圈', async () => {
+  const page = makePage();
+  page.requests[0].resolve({...managerDone, waiting_confirm: false,
+    llm_activity: {active: true, total_requests: 7, finished_requests: 7}});
+  await flushPromises();
+  assert.equal(page.elements.get('deepseekStatusText').textContent, 'DeepSeek本轮已调用 7 次');
+  assert.equal(page.elements.get('deepseekStatus').getAttribute('aria-busy'), 'false');
+  assert.equal(page.elements.get('deepseekStatusDetail').textContent, '当前未等待模型响应');
+  assert.equal(page.activeTimers.size, 0);
+});
+
+test('累计次数随真实快照更新并在新会话清零', async () => {
+  const page = makePage();
+  page.requests[0].resolve({...managerDone, llm_activity: {active: false, total_requests: 2}});
+  await flushPromises();
+  vm.runInContext('newChat()', page.context);
+  page.requests.find(x => x.url === '/api/new_chat').resolve({success: true});
+  await flushPromises();
+  assert.equal(page.elements.get('deepseekStatusText').textContent, 'DeepSeek待命');
+  assert.equal(page.elements.get('deepseekStatus').classList.contains('called'), false);
+  page.requests.at(-1).resolve({updates: [], running: true, done: false,
+    llm_activity: {active: true, total_requests: 1, agent: 'Manager'}});
+  await flushPromises();
+  assert.ok(page.elements.get('deepseekStatusDetail').textContent.includes('本轮第 1 次请求'));
+  assert.equal(page.elements.get('deepseekStatus').classList.contains('busy'), true);
+});
+
+
+test('自主解释回答不显示不存在的下载结果', () => {
+  const page = makePage();
+  page.context.renderDelivery({completion: 'answered', headline: '已回答你的问题。', goal: 'NDVI是什么', findings: ['NDVI是植被指数'], files: [], previews: [], limitations: []});
+  const result = page.elements.get('resultSummary').innerHTML;
+  assert.ok(result.includes('说明回答'));
+  assert.ok(!result.includes('下载本次结果'));
+});
+
+test('自主结果逐项显示用户要求并转义描述', () => {
+  const page = makePage();
+  page.context.renderDelivery({completion: 'candidate', headline: '部分完成', files: [], previews: [], requirements: [
+    {met: true, description: '分布图'}, {met: false, description: '<script>面积</script>'}]});
+  const result = page.elements.get('resultSummary').innerHTML;
+  assert.ok(result.includes('已完成：分布图'));
+  assert.ok(result.includes('未完成：&lt;script&gt;面积&lt;/script&gt;'));
+  assert.ok(!result.includes('<script>面积'));
 });

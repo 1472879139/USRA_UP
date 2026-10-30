@@ -30,7 +30,7 @@ import argparse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
-def run_cli():
+def run_cli(tool_agent=False, autonomous=False, selected_inputs=None):
     """命令行模式"""
     import json
     from core.message import Message, MessageType
@@ -47,6 +47,10 @@ def run_cli():
     # 加载配置
     with open("config.json", "r", encoding="utf-8") as f:
         config = json.load(f)
+
+    if autonomous or config.get("tool_agent", {}).get("autonomous"):
+        from tools.autonomous_workflow import run_cli as autonomous_cli
+        return autonomous_cli(os.getcwd(), config, selected_inputs)
 
     model = config["model"]
     api_key = config["api_key"]
@@ -91,7 +95,7 @@ def run_cli():
     # SupervisorAgent 智能分析：这些数据可以用于哪些遥感分析？
     temp_supervisor = SupervisorAgent(system_prompt=load_prompt("supervisor"), **kw)
     scan_result = scan_data_directory()
-    if scan_result["success"] and scan_result["data"]["file_count"] > 0:
+    if not tool_agent and not config.get("tool_agent", {}).get("enabled") and scan_result["success"] and scan_result["data"]["file_count"] > 0:
         print()
         print("=" * 60)
         print("  🧠 智能分析：这些影像可以用于哪些分析？")
@@ -102,7 +106,10 @@ def run_cli():
         print()
 
     # 创建会话
-    session = Session()
+    from tools.tool_agent_workflow import options
+    session = Session(tool_agent_options=options(config.get("tool_agent"), enabled=tool_agent))
+    if session.tool_agent_options.get("enabled"):
+        session.on_event("tool_agent_progress", lambda event: print("[工具Agent]", event))
     session.start()
 
     # 创建 Agents
@@ -305,11 +312,11 @@ def run_cli():
     print("=" * 60)
 
 
-def run_gui(port: int = 7860):
+def run_gui(port: int = 7860, tool_agent=False, autonomous=False):
     """启动 Flask 可视化界面"""
     from gui.app import launch_app
     print(f"启动界面: http://127.0.0.1:{port}")
-    launch_app(server_port=port)
+    launch_app(server_port=port, tool_agent=tool_agent, autonomous=autonomous)
 
 
 def main():
@@ -326,6 +333,9 @@ def main():
     parser.add_argument("--cli", action="store_true", help="使用命令行模式")
     parser.add_argument("--port", type=int, default=7860, help="Gradio 服务端口 (默认: 7860)")
 
+    parser.add_argument("--tool-agent", action="store_true", help="由DeepSeek结构化选择和组合受控工具")
+    parser.add_argument("--autonomous-agent", action="store_true", help="DeepSeek自主回答、选择模型或生成代码，并逐项验收")
+    parser.add_argument("--input", action="append", default=None, help="自主CLI输入，填写data内相对文件名，可重复")
     args = parser.parse_args()
 
     # 确保工作目录正确
@@ -339,14 +349,14 @@ def main():
     # 清理上次运行的临时文件
     import shutil
     temp_dir = "temp"
-    if os.path.exists(temp_dir):
+    if not args.autonomous_agent and os.path.exists(temp_dir):
         shutil.rmtree(temp_dir)
     os.makedirs(temp_dir, exist_ok=True)
 
     if args.cli:
-        run_cli()
+        run_cli(tool_agent=args.tool_agent, autonomous=args.autonomous_agent, selected_inputs=args.input)
     else:
-        run_gui(port=args.port)
+        run_gui(port=args.port, tool_agent=args.tool_agent, autonomous=args.autonomous_agent)
 
 
 if __name__ == "__main__":

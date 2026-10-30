@@ -17,5 +17,13 @@
     "enable_data_tracing": false,
     "enable_deadlock_detection": true,
     "enable_auto_pilot": false
+  },
+  "tool_agent": {
+    "enabled": false,
+    "autonomous": false,
+    "max_rounds": 12,
+    "max_calls": 24,
+    "max_seconds": 300,
+    "max_tokens": 4096
   }
 }

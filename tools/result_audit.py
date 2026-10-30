@@ -30,6 +30,7 @@ def _read_statistics(path):
         "pixels": ("像元数", "pixel_count", "pixels"),
         "percent": ("占比_%", "占比(%)", "占比", "percentage", "percent"),
         "area_km2": ("面积_km2", "面积(km²)", "area_km2"),
+        "raster": ("分类栅格", "classification_raster", "raster"),
         "scheme": ("方案", "scheme"),
         "class_id": ("类别编号", "class_id", "label"),
     }
@@ -51,6 +52,7 @@ def _read_statistics(path):
                    "pixels": float(raw[keys["pixels"]].replace(",", "")),
                    "percent": float(raw[keys["percent"]].rstrip("%")),
                    "scheme": raw.get(keys["scheme"], "默认") or "默认",
+                   "raster": raw.get(keys["raster"], "") or "",
                    "area_km2": float(raw[keys["area_km2"]]) if keys["area_km2"] else None}
             numeric = [row["pixels"], row["percent"]]
             if row["area_km2"] is not None:
@@ -78,17 +80,21 @@ def _read_label_counts(path):
     with rasterio.open(path) as src:
         if src.count != 1 or not np.issubdtype(np.dtype(src.dtypes[0]), np.integer):
             return None
-        counts = {}
+        counts, all_counts = {}, {}
         for _, window in src.block_windows(1):
             data = src.read(1, window=window, masked=True)
             values, numbers = np.unique(data.compressed(), return_counts=True)
             for value, number in zip(values.tolist(), numbers.tolist()):
                 counts[value] = counts.get(value, 0) + number
+            values, numbers = np.unique(data.data, return_counts=True)
+            for value, number in zip(values.tolist(), numbers.tolist()):
+                all_counts[value] = all_counts.get(value, 0) + number
         pixel_area = None
         if src.crs and src.crs.is_projected and src.crs.linear_units in ("metre", "meter"):
             transform = src.transform
             pixel_area = abs(transform.a * transform.e - transform.b * transform.d) / 1e6
-        return {"counts": counts, "pixel_area_km2": pixel_area}
+        return {"counts": counts, "all_counts": all_counts, "nodata": src.nodata,
+                "pixel_area_km2": pixel_area}
 
 
 def audit_execution_results(results_dir, files_generated, requirement="", *, task_subdir=None) -> dict:
@@ -144,9 +150,10 @@ def audit_execution_results(results_dir, files_generated, requirement="", *, tas
                 audit["statistics"].extend(rows)
             elif (path.suffix.lower() in (".tif", ".tiff")
                   and not path.name.lower().startswith("intermediate")
-                  and re.search(r"landcover|classification|classified|class_map", path.name, re.I)):
+                  and re.search(r"landcover|classification|classified|class_map|(?:^|[_-])mask(?:[_.-]|$)", path.name, re.I)):
                 labels = _read_label_counts(path)
                 if labels:
+                    labels["path"] = path.relative_to(root).as_posix()
                     rasters.append(labels)
         except Exception as error:
             errors.append(f"读取产物失败：{path.name}（{error}）")
@@ -169,9 +176,27 @@ def audit_execution_results(results_dir, files_generated, requirement="", *, tas
             errors.append(f"{label}：各类别占比之和不等于 100%。")
         if any(abs(row["percent"] - row["pixels"] * 100 / total) > 0.1 for row in rows):
             errors.append(f"{label}：占比与像元数不一致。")
-        candidates = [raster for raster in rasters if
+        declared = {row["raster"] for row in rows if row.get("raster")}
+        scoped = rasters
+        if declared:
+            if len(declared) != 1 or any(not row.get("raster") for row in rows):
+                errors.append(f"{label}：同组分类栅格声明不一致。")
+                continue
+            try:
+                target = (root / Path(source).parent / next(iter(declared))).resolve()
+                target.relative_to(task_root)
+                scoped = [raster for raster in rasters if (root / raster["path"]).resolve() == target]
+            except ValueError:
+                scoped = []
+            if not scoped:
+                errors.append(f"{label}：声明的分类栅格不在本次可核验清单中。")
+                continue
+        # CSV明确列出NoData类别时，连同该类核对，不能删掉待核实像元后凑总数。
+        scoped = [{**raster, "counts": raster["all_counts"] if raster["nodata"] in ids else raster["counts"]}
+                  for raster in scoped]
+        candidates = [raster for raster in scoped if
                       sorted(raster["counts"].values()) == sorted(row["pixels"] for row in rows if row["pixels"])]
-        if rasters and not candidates:
+        if scoped and not candidates:
             errors.append(f"{label}：CSV 像元数与本次分类栅格不一致。")
         if candidates:
             if all(row["class_id"] is not None for row in rows):
@@ -193,7 +218,7 @@ def audit_execution_results(results_dir, files_generated, requirement="", *, tas
 
     classification = bool(groups or rasters or re.search(r"分类|地物|land.?cover", requirement, re.I))
     if classification:
-        warnings.append("系统尚未核实独立样本验证证据：聚类和启发式簇命名作为候选分类，类别语义待复核。")
+        warnings.append("分类栅格与统计一致只证明数值一致；类别语义及识别精度应以独立评价为准。")
         warnings.append("统计范围是实际参与计算的像元；尚未证明与完整行政区范围一致。")
         if not groups:
             warnings.append("本次没有可识别的分类统计表，无法自动复核各类面积和占比。")

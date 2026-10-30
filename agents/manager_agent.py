@@ -44,6 +44,25 @@ class ManagerAgent(BaseAgent):
             data={"snapshot": self.session.data_context},
         )
         ensure_task_contract(self.session)
+        from tools.tool_agent_workflow import enabled
+        if enabled(self.session):
+            return prompt + "\n" + render_data_context(self.session.data_context)
+        from tools.installed_workflow import select_installed_tool
+        tool = select_installed_tool(self.session)
+        if tool:
+            prompt += ("\n[可用的已安装工具] " + ("本次输入符合固定地表温度重建工具契约；输出摄氏度图、温度统计及本图相对高温位置，不承诺气温或风险预警。"
+                       if tool['name'] == 'lst_rte' else "本次输入符合已安装水体候选方法的波段与编码契约。") +
+                       "将使用已安装的锁定方法，不要求用户选择参数；逐幅方法版本以产物事实为准，不承诺未经验证的精度。")
+        from tools.remote_models import select_remote_tool
+        try:
+            remote = select_remote_tool(self.session)
+        except (OSError, ValueError, TypeError):
+            remote = None
+            prompt += "\n[GPU工具配置] 配置校验失败；不得承诺可用远程模型，需先检查gpu.local.json。"
+        if remote:
+            from tools.remote_models import describe_remote_plan, confirmation_text
+            describe_remote_plan(self.session, remote)
+            prompt += "\n[代码侧固定远程工具] " + confirmation_text(remote)
         return prompt + "\n\n" + render_data_context(self.session.data_context) + render_task_contract(self.session) + (
             "\n\n确认时区分：用户明确要求、已读取数据事实、系统限制、待确认假设。"
             "只用已核验文件判断能力；指定文件不存在/不可读时明确指出，不自动换用其他文件。"
@@ -51,6 +70,22 @@ class ManagerAgent(BaseAgent):
             "用户要求各个/全部原始波段时，列明实际全部波段，任何排除都需理由；"
             "用户明确禁用衍生特征且覆盖范围有歧义时，再澄清是否包括簇命名运算，不额外要求用户选择算法。"
         )
+
+    def _confirmation_response(self, prompt: str) -> str:
+        from tools.tool_agent_workflow import enabled, confirmation
+        if enabled(self.session):
+            try:
+                return confirmation(self.session)
+            except (ValueError, OSError) as exc:
+                return "ERROR: " + str(exc)
+        from tools.remote_models import confirmation_text, select_remote_tool
+        try:
+            remote = select_remote_tool(self.session)
+        except (OSError, ValueError, TypeError):
+            remote = None
+        if remote:
+            return confirmation_text(remote)
+        return self._call_llm(prompt)
 
     def handle_message(self, message: Message) -> Message:
         content = message.content.lower().strip()
@@ -67,7 +102,7 @@ class ManagerAgent(BaseAgent):
                         "用户等待确认期间本地数据发生变化。请依据新数据重新说明可行性、变化和待确认事项。"
                         f"\n原始需求：{self.session.user_request}\n有序修改意见：\n{feedback}", latest,
                     )
-                    response = self._call_llm(prompt)
+                    response = self._confirmation_response(prompt)
                     if response.startswith("ERROR:"):
                         return Message(sender=self.name, receiver="User", content=response, msg_type=MessageType.ERROR)
                     self.session.manager_confirmation = response
@@ -113,9 +148,13 @@ class ManagerAgent(BaseAgent):
                 "有待复核项时明确标为候选结果，不能用执行成功或文件生成代替精度验证。"
                 "先用两三句普通话回答发现了什么、在哪里、哪些尚不能确认；专业方法放到后面。"
                 "不得把文件检查通过称为识别准确，也不得把模型自评当作可信概率。"
+                "若附有[固定工具逐幅无答案核验]，必须逐幅引用其中事实。"
+                "正常分析不读取人工答案，不得编造精确率、召回率、F1或漏检面积。"
+                "未确认区域不能当作可靠非水体；说明可核对的未确认范围，不得猜测漏检数量或无依据建议进一步收紧条件。"
                 + render_task_contract(self.session)
             )
-            summary = self._call_llm(prompt)
+            summary = ("远程工具结果依据本次实际产物与统计生成，尚未核对参考答案。"
+                       if (audit.get("remote_water") or audit.get("remote_landcover") or audit.get("tool_agent")) else self._call_llm(prompt))
             if summary.startswith("ERROR:"):
                 return Message(
                     sender=self.name,
@@ -124,7 +163,10 @@ class ManagerAgent(BaseAgent):
                     msg_type=MessageType.ERROR,
                 )
             if audit:
-                if report_conflicts(summary, audit):
+                from tools.result_delivery import has_unsupported_accuracy_claim
+                if has_unsupported_accuracy_claim(summary):
+                    summary = "模型补充说明包含无独立依据的精度声明，已改为本次产物事实：\n\n" + audit.get("facts", "")
+                elif report_conflicts(summary, audit):
                     summary = "模型报告与核验统计不一致，以下为核验后的结果说明：\n\n" + audit["facts"]
                 else:
                     summary += "\n\n" + audit.get("facts", "")
@@ -179,7 +221,7 @@ class ManagerAgent(BaseAgent):
                 )
             self.session.state_machine.force_transition(ConversationPhase.MANAGER_CONFIRM)
             prompt = self._data_informed_prompt(prompt)
-            response = self._call_llm(prompt)
+            response = self._confirmation_response(prompt)
             if response.startswith("ERROR:"):
                 return Message(
                     sender=self.name,

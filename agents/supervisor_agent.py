@@ -134,6 +134,30 @@ class SupervisorAgent(BaseAgent):
             task_subdir=self.session.result_subdir,
         )
         self.session.result_audit = audit
+        if not audit["errors"] and getattr(self.session, "tool_agent_plan", {}):
+            from tools.tool_agent_workflow import attach_audit
+            try:
+                attach_audit(self.session, self._project_root)
+            except (OSError, ValueError, KeyError, TypeError, RuntimeError) as exc:
+                audit["errors"].append("工具Agent产物核验失败：" + str(exc))
+                audit["status"] = "failed"
+                audit["facts"] += "\n工具Agent产物核验失败：" + str(exc)
+        if not audit["errors"] and self.session.tool_plan:
+            from tools.installed_workflow import attach_tool_audit
+            try:
+                attach_tool_audit(self.session, self._project_root)
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                audit["errors"].append("固定工具产物核验失败：" + str(exc))
+                audit["status"] = "failed"
+                audit["facts"] += "\n固定工具产物核验失败：" + str(exc)
+        if not audit["errors"] and getattr(self.session, "remote_tool_plan", {}):
+            from tools.remote_models import attach_remote_audit
+            try:
+                attach_remote_audit(self.session, self._project_root)
+            except (OSError, ValueError, TypeError, KeyError) as exc:
+                audit["errors"].append("远程固定工具产物核验失败：" + str(exc))
+                audit["status"] = "failed"
+                audit["facts"] += "\n远程固定工具产物核验失败：" + str(exc)
         message.metadata["result_audit"] = audit
         return "\n".join(audit["errors"]) or None
 

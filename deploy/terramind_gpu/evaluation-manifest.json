@@ -1,0 +1,32 @@
+{
+  "schema": "ursa.terramind.landcover.v1",
+  "reference": "官方示例配对ESRI地物产品；非独立人工真值，可能与预训练数据重叠",
+  "reference_encoding": "TerraMind-v1 contiguous 0..9; reference 0 ignored; prediction 0 remains error",
+  "samples": [
+    {
+      "id": "38D_378R_2_3",
+      "sha256": "851557ab2378629dc2969e0654e11016b86aca325de356f46ebf3e2d8f3ca136",
+      "url": "https://raw.githubusercontent.com/IBM/terramind/53d61da09213c2c3629931b6322f94cce617886a/examples/LULC/38D_378R_2_3.tif"
+    },
+    {
+      "id": "282D_485L_3_3",
+      "sha256": "70a0419f577f1985109672e62988a0731ac4849b8c0a95888e86947f34107484",
+      "url": "https://raw.githubusercontent.com/IBM/terramind/53d61da09213c2c3629931b6322f94cce617886a/examples/LULC/282D_485L_3_3.tif"
+    },
+    {
+      "id": "433D_629L_3_1",
+      "sha256": "1572be0b14a2c219040b1acf7a6aa81ca9a9b497448d425146d484ad024bb0c6",
+      "url": "https://raw.githubusercontent.com/IBM/terramind/53d61da09213c2c3629931b6322f94cce617886a/examples/LULC/433D_629L_3_1.tif"
+    },
+    {
+      "id": "637U_59R_1_3",
+      "sha256": "bcc7286222fea58784e6ca9ccf49f4e5a6cb9db1fd450d0e1d89624d539b2ead",
+      "url": "https://raw.githubusercontent.com/IBM/terramind/53d61da09213c2c3629931b6322f94cce617886a/examples/LULC/637U_59R_1_3.tif"
+    },
+    {
+      "id": "609U_541L_3_0",
+      "sha256": "237c6395ed646195e51895fbbbd656bb2751c181e4067e93274f93f7cead90a2",
+      "url": "https://raw.githubusercontent.com/IBM/terramind/53d61da09213c2c3629931b6322f94cce617886a/examples/LULC/609U_541L_3_0.tif"
+    }
+  ]
+}

@@ -70,6 +70,11 @@ def run_execution_cycle(session, engineer, executor, supervisor, code_message, *
             return stop("Executor 未返回执行结果，不能判定任务完成。")
 
         if response.msg_type == MessageType.RESULT:
+            if session.tool_plan:
+                session.tracer.add_event("tool_call", agent="Executor",
+                                        data={"tool_name": session.tool_plan["name"],
+                                              "tool_version": session.tool_plan["version"], "attempt": attempt},
+                                        status="success")
             # 只累计本循环实际生成的文件；保留未修改产物及此前失败文件，禁止漏检。
             known_files = list(dict.fromkeys([*known_files, *response.metadata.get("files_generated", [])]))
             response.metadata["files_generated"] = list(known_files)
@@ -115,8 +120,16 @@ def run_execution_cycle(session, engineer, executor, supervisor, code_message, *
         else:
             return stop("Executor 返回了非执行结果消息，不能继续生成报告。")
 
+        if getattr(session, "tool_agent_plan", {}):
+            return stop("工具Agent未完成" + stage + "：" + failure.content + "；不再次启动整套模型请求或改写核验规则。")
+        if getattr(session, "remote_tool_plan", {}):
+            return stop("远程固定工具未通过" + stage + "：" + failure.content +
+                        "。请检查输入、SSH隧道和GPU服务；不会通过改写算法、换图或使用旧结果来继续。")
         if attempt >= max_attempts:
             return stop(f"{stage}失败，已达最大尝试次数 ({max_attempts})：{failure.content}")
+        if session.tool_plan:
+            return stop("固定工具未通过" + stage + "，请重新检查输入与工具适用条件；"
+                        "不会让模型改写已锁定的工具方法来规避检查。原因：" + failure.content)
         emit({"type": "system", "data": f"{stage}失败，Engineer 自动诊断与修复中... (尝试 {attempt+1}/{max_attempts})"})
         emit({"type": "phase", "data": "Engineer 编码"})
         session.state_machine.force_transition(ConversationPhase.ENGINEER_CODING)

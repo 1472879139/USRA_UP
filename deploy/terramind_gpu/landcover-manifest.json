@@ -1,0 +1,41 @@
+{
+  "schema": "ursa.terramind.landcover.v1",
+  "source_revision": "53d61da09213c2c3629931b6322f94cce617886a",
+  "prompt": "帮我识别这张影像中的主要地物，并给出一张分类图和各类占比。",
+  "settings": {
+    "seed": 20261028,
+    "precision": "float32",
+    "decoding_steps": 1,
+    "timesteps": 10,
+    "top_p": 0.8,
+    "temperature": 1.0,
+    "input": "S2L2A raw DN; standardize=True; no offset"
+  },
+  "samples": [
+    {
+      "id": "38D_378R_2_3",
+      "sha256": "c31f749d89c5bec772204aa1d0436a490b1a14ead7a152b66884fc247055acdc",
+      "url": "https://raw.githubusercontent.com/IBM/terramind/53d61da09213c2c3629931b6322f94cce617886a/examples/S2L2A/38D_378R_2_3.tif"
+    },
+    {
+      "id": "282D_485L_3_3",
+      "sha256": "40cf54f662894a42c205876162e796275bfdf614b61905517826ee1b6f7e0d65",
+      "url": "https://raw.githubusercontent.com/IBM/terramind/53d61da09213c2c3629931b6322f94cce617886a/examples/S2L2A/282D_485L_3_3.tif"
+    },
+    {
+      "id": "433D_629L_3_1",
+      "sha256": "b8a74c697b07aed11bfe4328329ee7390f246d390d99172485d63d6f04863dd7",
+      "url": "https://raw.githubusercontent.com/IBM/terramind/53d61da09213c2c3629931b6322f94cce617886a/examples/S2L2A/433D_629L_3_1.tif"
+    },
+    {
+      "id": "637U_59R_1_3",
+      "sha256": "10f6b77cae3a9810266ebaf2233eecd8948670da2d8bc12de7a85fc1c229678d",
+      "url": "https://raw.githubusercontent.com/IBM/terramind/53d61da09213c2c3629931b6322f94cce617886a/examples/S2L2A/637U_59R_1_3.tif"
+    },
+    {
+      "id": "609U_541L_3_0",
+      "sha256": "8a7a222ddf4f64faa8859bd2ac8d22841475f7296045450f3de46b65244a712d",
+      "url": "https://raw.githubusercontent.com/IBM/terramind/53d61da09213c2c3629931b6322f94cce617886a/examples/S2L2A/609U_541L_3_0.tif"
+    }
+  ]
+}

@@ -88,6 +88,11 @@ def load_data_context(data_dir=None, previous=None) -> dict:
             stat = resolved.stat()
             relative = path.relative_to(root).as_posix()
             signature = [relative, stat.st_size, stat.st_mtime_ns]
+            # 来源、产品级别与编码声明参与固定模型适配，也必须使旧确认失效。
+            sidecar = resolved.parent / "metadata.json"
+            if sidecar.is_file() and not sidecar.is_symlink():
+                metadata_stat = sidecar.stat()
+                signature.extend([metadata_stat.st_size, metadata_stat.st_mtime_ns])
             context["signature"].append(signature)
             context["files"].append(old.get(tuple(signature)) or _inspect_raster(resolved, relative))
     except OSError as error:

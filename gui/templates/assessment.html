@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>USRA_UP · 答卷与外部评价</title>
+<style>
+:root{--paper:#f3f7fa;--ink:#173048;--muted:#536b7e;--line:#d3e0e9;--blue:#0866b7}*{box-sizing:border-box}body{margin:0;font:16px/1.7 "Microsoft YaHei",system-ui,sans-serif;background:var(--paper);color:var(--ink)}header{background:#fff;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;padding:16px max(20px,calc((100vw - 1100px)/2))}main{max-width:1140px;margin:auto;padding:28px 20px 60px}h1{font-size:34px;line-height:1.3}h2{font-size:22px;margin-top:0}p{margin:12px 0}a{color:var(--blue)}section{background:#fff;border:1px solid var(--line);border-radius:10px;padding:24px;margin:20px 0;min-width:0}.flow{display:flex;flex-wrap:wrap;gap:10px}.flow span{background:#e7f0f7;padding:8px 13px;border-radius:6px}.note{border-left:4px solid #b57b08;background:#fff4da;padding:14px 18px}.muted{color:var(--muted);font-size:14px}.actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px}button,select{font:inherit;border-radius:6px;padding:9px 13px;border:1px solid var(--line);max-width:100%}button{background:var(--blue);color:#fff;cursor:pointer}button:disabled{opacity:.5;cursor:wait}button:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #d59921;outline-offset:3px}pre{background:var(--paper);white-space:pre-wrap;overflow-wrap:anywhere;padding:16px;font:13px/1.65 Consolas,monospace}summary{cursor:pointer;font-weight:600}.tablewrap{overflow-x:auto}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:12px;border-bottom:1px solid var(--line)}.result-card{padding:18px;border:1px solid var(--line);border-radius:8px;margin:16px 0}.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.metrics div{background:var(--paper);padding:14px}.metrics strong{display:block;font-size:27px;color:var(--blue)}[hidden]{display:none!important}@media(max-width:640px){header{font-size:13px;padding:12px 16px}main{padding:20px 14px 44px}h1{font-size:28px}section{padding:18px}.metrics{grid-template-columns:1fr}.actions{align-items:stretch;flex-direction:column}}
+</style>
+</head>
+<body>
+<header><strong>USRA_UP / 开发者测评</strong><a href="/">返回分析对话</a></header>
+<main>
+<h1>系统先交卷，答案后评分。</h1>
+<p>普通用户的结果保持原样；外部评价不参与这次规划、重试和最终解释，不会调用模型。</p>
+<div class="flow"><span>① 正常分析，不读答案</span><span>② 结束后封存答卷</span><span>③ 独立读取答案评分</span><span>④ 据成绩改进下一版本</span></div>
+<p class="note">本机入口实现代码路径分离，没有启用操作系统权限沙箱。严格测试请把干净运行包放到无法访问答案的独立环境；将答卷带回评分。已有公开案例用于回归，成绩不代表未见地区能力。</p>
+<section>
+<h2>交卷：保留系统实际给用户的结果</h2>
+<p>先在聊天中完成或结束一个任务。失败任务也能交卷，保留失败原因；正在分析和等待确认时不能交卷。</p>
+<div class="actions"><button id="freezeBtn" type="button">封存当前已结束任务</button><a id="bundleLink" hidden>下载答卷ZIP</a></div>
+<p id="freezeStatus" role="status" aria-live="polite"></p><pre id="receipt" hidden></pre>
+<p class="muted">答卷含本次产物、原需求、系统解释、输入与源码摘要、耗时和调用记录。收据SHA256请另行保管；哈希用于检测交卷后的变动，不是数字签名。真实配置、密钥与参考答案不打包。</p>
+</section>
+<section>
+<h2>评分：只评价已经冻结的答卷</h2>
+<div class="actions"><select id="taskSelect" aria-label="选择已交卷任务"></select><button id="gradeBtn" type="button" disabled>读取答案并独立评分</button><button id="refreshBtn" type="button">刷新交卷列表</button></div>
+<p id="gradeStatus" role="status" aria-live="polite"></p>
+<details id="systemAnswer" hidden><summary>展开系统答卷（原样保留）</summary><pre id="answerText"></pre></details>
+<div id="assessmentResult" hidden><h3>外部评价</h3><div id="sceneCards"></div><ul id="reviewItems"></ul><a id="reportLink">下载独立评分报告</a><details><summary>展开完整评价记录</summary><pre id="reportJson"></pre></details></div>
+<p class="muted">失败、无答案、缺少受支持的预测时明确记录，不编造精度。当前支持已配对的水体像元评分，以及lst_01温度产品的一致性评价；温度一致性不等于独立地面实测精度。列表仅保存本次服务中的交卷；重启后可用命令行评分磁盘答卷。</p>
+</section>
+</main>
+<script>
+const el=id=>document.getElementById(id);
+function node(tag,text){const n=document.createElement(tag);n.textContent=text;return n;}
+function percent(v){return v===null||v===undefined?'无法计算':(v*100).toFixed(1)+'%';}
+async function load(){
+ try{const response=await fetch('/api/submissions');if(!response.ok)throw new Error('列表读取失败');const data=await response.json();el('taskSelect').replaceChildren();
+ for(const r of data.receipts){const option=node('option',r.task_id);option.value=r.task_id;el('taskSelect').append(option);}
+ el('gradeBtn').disabled=!data.receipts.length||!data.scorer_available;
+ if(!data.scorer_available)el('gradeStatus').textContent='此干净运行包不含评分模块，请下载答卷后交给独立评分端。';
+ }catch(e){el('gradeStatus').textContent=e.message;}
+}
+el('refreshBtn').onclick=load;
+el('freezeBtn').onclick=async()=>{
+ el('freezeBtn').disabled=true;el('freezeStatus').textContent='正在复制并核对本任务产物…';
+ try{const response=await fetch('/api/submissions/freeze',{method:'POST'});const data=await response.json();if(!response.ok||!data.success)throw new Error(data.message||'交卷失败');
+ el('freezeStatus').textContent='答卷已封存；本次结果不会因外部评分而改变。';el('receipt').textContent=JSON.stringify(data.receipt,null,2);el('receipt').hidden=false;
+ el('bundleLink').href=data.download;el('bundleLink').hidden=false;await load();el('taskSelect').value=data.receipt.task_id;
+ }catch(e){el('freezeStatus').textContent=e.message;}finally{el('freezeBtn').disabled=false;}
+};
+el('gradeBtn').onclick=async()=>{
+ el('gradeBtn').disabled=true;el('gradeStatus').textContent='正在核对交卷哈希并独立读取答案…';el('assessmentResult').hidden=true;el('systemAnswer').hidden=true;
+ try{const response=await fetch('/api/assessment/grade',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task_id:el('taskSelect').value})});const data=await response.json();if(!response.ok||!data.success)throw new Error(data.message||'评分失败');
+ const r=data.report;el('gradeStatus').textContent='评价已记录：'+({scored:'已评分',partly_scored:'部分可评分',unscored:'暂无可用独立评分',not_completed:'任务未完成，保留失败记录'}[r.status]||r.status);
+ el('answerText').textContent=r.system_answer||'';el('systemAnswer').hidden=false;el('sceneCards').replaceChildren();
+ for(const s of r.scenes){const card=node('article','');card.className='result-card';card.append(node('h3',s.label));
+  for(const finding of s.findings)card.append(node('p',finding));
+  if(s.scores){const metrics=node('div','');metrics.className='metrics';const thermal=s.scores.metric_type==='temperature';const items=thermal?[['平均相差',s.scores.mae_celsius],['均方根差',s.scores.rmse_celsius],['参考区覆盖率',s.scores.coverage]]:[['标出的有多少是对的',s.scores.precision],['真实水体找回多少',s.scores.recall],['综合指标 F1',s.scores.f1]];for(const [label,value] of items){const box=node('div',label);box.append(node('strong',thermal&&label!=='参考区覆盖率'?(value==null?'无可比较像元':value.toFixed(3)+'℃'):percent(value)));metrics.append(box);}card.append(metrics);}
+  el('sceneCards').append(card);
+ }
+ el('reviewItems').replaceChildren(...r.review_items.map(t=>node('li',t)));el('reportLink').href=data.download;el('reportJson').textContent=JSON.stringify(r,null,2);el('assessmentResult').hidden=false;
+ }catch(e){el('gradeStatus').textContent=e.message;}finally{el('gradeBtn').disabled=false;}
+};
+load();
+</script>
+</body></html>

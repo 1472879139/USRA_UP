@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FIX-019｜TerraMind Small：从特征到地物候选图</title>
+<style>
+:root{--ink:#102e3b;--muted:#526a73;--paper:#f0f4f3;--green:#146c5a;--blue:#276d92;--line:#d7e1df;--amber:#8f610d}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:75px}
+body{margin:0;background:var(--paper);color:var(--ink);font:18px/1.65 "Microsoft YaHei","Noto Sans SC",sans-serif}
+nav{position:sticky;top:0;z-index:5;background:#102e3bf5;color:white;display:flex;align-items:center;justify-content:space-between;padding:12px 5%;gap:12px}
+nav a{color:#d9f6ed;text-decoration:none;margin:0 8px;font-size:14px}nav span{font-size:14px;letter-spacing:1px}
+main{max-width:1280px;margin:auto;padding:0 5%}.slide{min-height:calc(100vh - 70px);padding:65px 0 50px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;justify-content:center}
+.kicker{color:var(--green);font-weight:700;letter-spacing:2px;font-size:14px}
+h1{font-size:clamp(34px,4.7vw,64px);line-height:1.2;letter-spacing:-1px;margin:18px 0 26px;max-width:1000px}
+h2{font-size:clamp(29px,3vw,42px);line-height:1.3;margin:15px 0 26px}h3{font-size:23px;margin:0 0 12px}p{max-width:980px}
+.lead{font-size:23px;color:var(--muted);max-width:900px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:27px}.tag{display:inline-block;border-radius:20px;padding:4px 13px;background:#dfebe7;color:var(--green);font-size:14px}
+.pending{background:#fff0d0;color:var(--amber)}.muted{color:var(--muted)}.big{font-size:62px;line-height:1.2;font-weight:750;color:var(--green)}
+svg{width:100%;height:auto;display:block}.figure{background:#fff;border:1px solid var(--line);padding:22px;border-radius:18px;margin-top:22px}
+table{width:100%;border-collapse:collapse;font-size:16px}th,td{text-align:left;padding:12px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-weight:500}
+code,pre{font-family:Consolas,monospace}pre{padding:20px;background:#102e3b;color:#e7f4ed;border-radius:12px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:1.7}
+code{font-size:.88em;overflow-wrap:anywhere}.note{border-left:4px solid #c08b26;padding:12px 20px;background:#fff5e4;border-radius:4px;margin-top:20px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:15px}.legend span{display:flex;align-items:center;gap:7px}.swatch{width:17px;height:17px;border-radius:3px;border:1px solid #bbc}
+.steps{display:flex;gap:16px;align-items:stretch;flex-wrap:wrap}.step{flex:1;min-width:160px;border-top:4px solid var(--green);background:white;padding:20px;border-radius:8px}
+a{color:var(--blue)}footer{font-size:13px;color:var(--muted);margin-top:25px}.scroll{overflow-x:auto}
+@media(max-width:700px){body{font-size:16px}nav{padding:10px 4%;flex-wrap:wrap}nav a{font-size:12px;margin:0 5px}.slide{padding:35px 0;min-height:auto}.grid{grid-template-columns:1fr}.card{padding:20px}.lead{font-size:19px}.figure{padding:8px}.big{font-size:48px}h1{letter-spacing:0}table{font-size:14px}th,td{padding:8px}.step{min-width:100%}}
+@media print{nav{display:none}.slide{break-after:page;min-height:0;padding:30px 0}body{font-size:14px}.grid{grid-template-columns:1fr 1fr}}
+</style></head><body>
+<nav><span>USRA_UP · FIX-019 · 2026.10.28</span><div><a href="#s1">进展</a><a href="#s2">实现</a><a href="#s3">数据</a><a href="#s4">评价</a><a href="#s5">验证</a><a href="#s6">执行</a></div></nav>
+<main>
+<section class="slide" id="s1"><div class="kicker">01 / 当前进展</div><h1>让Small输出<br>可检查的地物候选图</h1>
+<p class="lead">从“模型能计算影像特征”，推进到“模型生成类别图、交付后独立评分”的可执行工具包。</p>
+<div class="grid"><div class="card"><span class="tag">上阶段已在4090D验证</span><h3>基础编码器</h3><p>完整所需编码器权重加载、真实影像GPU前向通过；输出14×14×384特征，尚无地物类别。</p></div>
+<div class="card"><span class="tag pending">本阶段等待真实GPU运行</span><h3>官方生成网络 + 类别解码器</h3><p>推理入口、五例输入、产物交付和独立评分器已完成本地验证。实际分类质量尚未有分数。</p></div></div>
+<div class="note">这里使用官方生成能力，不是已经完成任务微调的分类模型。结果先叫“候选类别”，再看外部评价。</div>
+<footer>历史记录保留：[FIX-018] <a href="2026-10-27-018-terramind-small-deploy.html">Small部署与真实GPU编码器验收</a>。</footer></section>
+
+<section class="slide" id="s2"><div class="kicker">02 / 实现变化</div><h2>复用已有主权重，补齐类别解码路径</h2>
+<div class="figure"><svg viewBox="0 0 1000 260" role="img" aria-label="十二波段影像进入Small完整模型，经LULC解码器生成类别图和结果包">
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" fill="none" stroke="#146c5a" stroke-width="1.5"/></marker></defs>
+<rect x="15" y="58" width="200" height="140" rx="16" fill="#e6eef2"/><text x="115" y="108" text-anchor="middle" font-size="23" fill="#102e3b">S2L2A输入</text><text x="115" y="145" text-anchor="middle" font-size="18" fill="#526a73">12波段 · 原始DN</text>
+<rect x="275" y="58" width="200" height="140" rx="16" fill="#dfebe7"/><text x="375" y="108" text-anchor="middle" font-size="23" fill="#102e3b">Small完整模型</text><text x="375" y="145" text-anchor="middle" font-size="18" fill="#526a73">复用504MB权重</text>
+<rect x="535" y="58" width="200" height="140" rx="16" fill="#dfebe7"/><text x="635" y="108" text-anchor="middle" font-size="23" fill="#102e3b">LULC解码器</text><text x="635" y="145" text-anchor="middle" font-size="18" fill="#526a73">新增约736MB</text>
+<rect x="795" y="58" width="190" height="140" rx="16" fill="#fff0d0"/><text x="890" y="108" text-anchor="middle" font-size="23" fill="#102e3b">类别候选图</text><text x="890" y="145" text-anchor="middle" font-size="18" fill="#526a73">图 + 占比 + ZIP</text>
+<path d="M220 128 H266 M480 128 H526 M740 128 H786" stroke="#146c5a" stroke-width="3" marker-end="url(#arrow)"/>
+</svg></div>
+<div class="grid" style="margin-top:22px"><div class="card"><h3>缺参数就停</h3><p>主网络、共享embedding别名、tokenizer全部核对键名与形状，再严格加载。模型文件固定提交、体积与SHA256；不拿随机参数补缺失。</p></div>
+<div class="card"><h3>固定一次运行规则</h3><p>float32、固定逐例种子、固定生成参数；运行阶段离线。只补缺失的diffusers 0.30.0，不升级Torch、GDAL或Rasterio。</p></div></div>
+<footer>官方依据：<a href="https://huggingface.co/ibm-esa-geospatial/TerraMind-1.0-small#generations">Small生成说明</a> · <a href="https://huggingface.co/ibm-esa-geospatial/TerraMind-1.0-Tokenizer-LULC">LULC解码器与ESRI类别</a>。</footer></section>
+
+<section class="slide" id="s3"><div class="kicker">03 / 固定输入</div><h2>五幅官方示例，答案放在本机</h2>
+<div class="scroll card"><table><tr><th>固定顺序</th><th>输入编号</th><th>格式预检</th></tr>
+<tr><td>1</td><td>38D_378R_2_3</td><td>12波段 · 224×224 · 完整有效</td></tr><tr><td>2</td><td>282D_485L_3_3</td><td>12波段 · 224×224 · 完整有效</td></tr>
+<tr><td>3</td><td>433D_629L_3_1</td><td>12波段 · 224×224 · 完整有效</td></tr><tr><td>4</td><td>637U_59R_1_3</td><td>12波段 · 224×224 · 完整有效</td></tr>
+<tr><td>5</td><td>609U_541L_3_0</td><td>12波段 · 224×224 · 完整有效</td></tr></table></div>
+<p>输入来自固定官方提交53d61da…，逐文件哈希已锁定。服务器执行包只包含输入影像和推理源码；参考图与评分器不上传。</p>
+<div class="card"><h3>输出类别与图例</h3><div class="legend">
+<span><i class="swatch" style="background:#000"></i>0 无类别</span><span><i class="swatch" style="background:#3171AD"></i>1 水体</span><span><i class="swatch" style="background:#469C76"></i>2 树木</span>
+<span><i class="swatch" style="background:#83CA70"></i>3 淹水植被</span><span><i class="swatch" style="background:#EAE159"></i>4 农作物</span><span><i class="swatch" style="background:#C07CB8"></i>5 建成区</span>
+<span><i class="swatch" style="background:#C19368"></i>6 裸地</span><span><i class="swatch" style="background:#6FB2E4"></i>7 雪和冰</span><span><i class="swatch" style="background:#F1F1F1"></i>8 云</span>
+<span><i class="swatch" style="background:#C66526"></i>9 草灌覆盖</span></div></div>
+<div class="note">参考是ESRI地物产品；其自身可能出错，官方示例也可能与预训练数据重叠。因此只能做探索性产品一致性测试，不能据此宣称陌生数据上的精度。</div></section>
+
+<section class="slide" id="s4"><div class="kicker">04 / 不看答案地运行</div><h2>先交付封存，再由独立进程核对</h2>
+<div class="steps"><div class="step"><h3>① 服务器运行</h3><p>只读取固定输入。输出类别图、预览、统计、逐例状态和参数。</p></div><div class="step"><h3>② 封存结果</h3><p>唯一结果目录、文件SHA清单、ZIP；失败也写入。打印取回命令。</p></div><div class="step"><h3>③ 本机评价</h3><p>验证模型、包、输入、网格和种子，再读取参考类别。</p></div><div class="step"><h3>④ 解释效果</h3><p>像素一致率、mIoU、逐类IoU/F1、混淆矩阵及失败率。</p></div></div>
+<div class="grid" style="margin-top:22px"><div class="card"><h3>不能删掉难像元</h3><p>只忽略参考0和原始无效像元。模型预测0、255仍计为错误；整例失败按未决策进入五例总体。</p></div><div class="card"><h3>分数说明什么</h3><p>数值越高，表示与参考产品越一致。没有参考时不生成“准确率”；类别得分不冒充可信百分比。</p></div></div>
+<footer>来源核验与哈希可检测文件改变，但不是远程执行真实性的加密证明。后续还需真正独立的留出数据。</footer></section>
+
+<section class="slide" id="s5"><div class="kicker">05 / 本轮验证</div><h2>离线工程回归已通过，真实分类待运行</h2>
+<div class="grid"><div class="card"><div class="big">157 / 157</div><h3>Python完整回归</h3><p>其中新增16项：权重缺失拒绝、输出数值、真实合成GIS产物、封存完整性、独立评分惩罚、依赖边界、子进程包启动。</p></div><div class="card"><div class="big">22 / 22</div><h3>界面回归</h3><p>既有轮询、消息恢复、折叠和结果展示通过。Git差异检查、新文件语法与行尾空白检查通过。</p></div></div>
+<div class="figure"><svg viewBox="0 0 1000 130" role="img" aria-label="工程回归已通过，服务器生成和独立评价尚待完成">
+<rect x="5" y="25" width="310" height="70" rx="14" fill="#146c5a"/><text x="160" y="68" fill="white" text-anchor="middle" font-size="23">工程回归：已通过</text>
+<rect x="345" y="25" width="310" height="70" rx="14" fill="#fff0d0"/><text x="500" y="68" fill="#8f610d" text-anchor="middle" font-size="23">真实生成：待运行</text>
+<rect x="685" y="25" width="310" height="70" rx="14" fill="#fff0d0"/><text x="840" y="68" fill="#8f610d" text-anchor="middle" font-size="23">独立评分：待结果</text>
+</svg></div>
+<p class="muted">本机没有安装PyTorch，没有连接私有GPU，也未调用DeepSeek或其他收费模型。合成测试结果不代表真实遥感分类精度。</p></section>
+
+<section class="slide" id="s6"><div class="kicker">06 / 执行与交付</div><h2>上传一个包，在原GPU环境运行</h2>
+<div class="card"><h3>Windows先上传</h3><p>使用操作说明中提供的本机完整路径，上传成功后SSH进入GPU。</p><pre>scp -P 22022 "本机执行包.pyz" "yy@127.0.0.1:~/ursa-terramind-landcover-20261028.pyz"
+ssh -p 22022 yy@127.0.0.1</pre><h3>Ubuntu执行</h3><pre>bash ~/ursa-gpu-runtime/run-python.sh ~/ursa-terramind-landcover-20261028.pyz</pre>
+<p>程序复用Small主权重，下载约736MB类别解码器并运行五例。看到“本轮封存：5/5完成”后，按终端给出的SCP命令取回ZIP，再做独立评分。</p></div>
+<p>本地分支：<code>codex/terramind-small-deploy</code>。本阶段仅本地修改；未提交、未推送、未创建PR、未批准、未合并。Agent接入尚未执行。</p>
+<footer>详细说明：<a href="../terramind-landcover.md">部署与评分规则</a>。既有编码器入口保留；旧图文记录保留。</footer></section>
+</main></body></html>

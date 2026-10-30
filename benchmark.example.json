@@ -1,0 +1,4 @@
+{
+  "reference_root": "填写单独保存的answers目录路径，可用项目相对路径",
+  "comparison_root": "可选：包含others目录的测试包根目录，用于检查去云作者对照材料"
+}

@@ -42,6 +42,8 @@ class BaseAgent(ABC):
         reasoning_chars = 0
         finish_reason = None
         usage = None
+        activity_session = self.session if self.session and hasattr(self.session, "begin_llm_call") else None
+        activity_token = activity_session.begin_llm_call(self.name) if activity_session else None
         try:
             request = {
                 "model": self.model,
@@ -147,6 +149,9 @@ class BaseAgent(ABC):
                     status="error",
                 )
             return f"ERROR: {error_msg}"
+        finally:
+            if activity_session:
+                activity_session.end_llm_call(activity_token)
 
     def report_issue(self, issue_type: str, description: str, severity: str = "warning") -> Optional[Message]:
         """

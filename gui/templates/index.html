@@ -73,6 +73,16 @@ input,textarea,select{font-family:inherit;font-size:inherit}
 /* ── Chat Area ─────────────────────────────────────────── */
 .chat-header{padding:10px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;background:var(--bg-dark)}
 .chat-header .title{font-weight:600;font-size:15px}
+.chat-header{flex-wrap:wrap}
+.llm-status{display:flex;align-items:center;flex-shrink:0;gap:12px;border:1px solid var(--border-light);border-left:4px solid var(--border-light);border-radius:8px;margin:10px 20px;padding:12px 16px;font-size:15px;font-weight:600;color:var(--text-dim);background:var(--bg-card)}
+.llm-status small{display:block;font-size:12px;font-weight:400;line-height:1.5;margin-top:3px}
+.llm-spinner{width:20px;height:20px;flex-shrink:0;border-radius:50%;border:3px solid currentColor;opacity:.5}
+.llm-status.busy{color:#91c9ff;border-color:#397fbd;background:#19334c}
+.llm-status.busy .llm-spinner{opacity:1;border-right-color:transparent;animation:llm-spin .8s linear infinite}
+.llm-status.called{color:#8ddbc4;border-left-color:#4bb99a}
+.llm-status.unknown{color:var(--orange)}
+@keyframes llm-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.llm-status.busy .llm-spinner{animation:none}}
 .chat-header .phase-tag{margin-left:auto;font-size:12px;color:var(--text-dim);background:var(--bg-card);padding:4px 10px;border-radius:var(--radius);display:flex;align-items:center;gap:6px}
 .chat-header .phase-tag .dot{width:8px;height:8px;border-radius:50%;background:var(--orange)}
 
@@ -224,7 +234,7 @@ input,textarea,select{font-family:inherit;font-size:inherit}
 .result-summary pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.8 Consolas,'Microsoft YaHei',monospace;margin-top:12px;max-height:500px;overflow:auto}
 button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent-hover);outline-offset:3px}
 @media(max-width:768px){.mobile-new-chat{display:block}}
-@media(max-width:640px){.header{padding:10px 12px;gap:8px}.header .logo{font-size:14px}.header .logo span,.header .badge{display:none}.input-tools{padding:8px 12px}.result-summary{padding:18px 14px}.result-summary h2{font-size:20px}.result-images{grid-template-columns:1fr}.msg{max-width:100%}}
+@media(max-width:640px){.header{padding:10px 12px;gap:8px}.header .logo{font-size:14px}.header .logo span,.header .badge{display:none}.header .agent-mode{display:inline-block}.input-tools{padding:8px 12px}.result-summary{padding:18px 14px}.result-summary h2{font-size:20px}.result-images{grid-template-columns:1fr}.msg{max-width:100%}}
 </style>
 </head>
 <body>
@@ -255,10 +265,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{o
         USRA_UP <span style="color:var(--text-dim);font-weight:400">遥感分析系统</span>
       </div>
       <span class="badge">v1.14</span>
+      {% if autonomous_mode %}<span class="badge agent-mode" id="agentMode" title="可直接回答、调用工具或编写代码">自主Agent</span>{% endif %}
       <button type="button" class="mobile-new-chat" onclick="newChat()">新建对话</button>
     </header>
 
     <div class="input-tools">
+      {% if benchmark_available %}<a href="/benchmarks" target="_blank" rel="noopener" style="color:var(--accent);font-size:13px">固定方法验收</a>{% endif %}
+      <a href="/assessment" target="_blank" rel="noopener" style="color:var(--accent);font-size:13px">交卷与外部评分</a>
       <button type="button" onclick="loadInputFiles()">选择已有影像</button>
       <label for="uploadInput">添加影像</label><input id="uploadInput" type="file" accept=".tif,.tiff" multiple onchange="uploadInputs(this)" hidden>
       <span id="selectedInputText">选择数据，再用一句话说出想了解的内容。</span>
@@ -286,6 +299,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{o
       </div>
     </div>
 
+    <div class="llm-status" id="deepseekStatus" role="status" aria-live="polite" aria-busy="false">
+      <span class="llm-spinner" aria-hidden="true"></span>
+      <span><span id="deepseekStatusText">DeepSeek待命</span><small id="deepseekStatusDetail"></small></span>
+    </div>
+
     <section id="resultSummary" class="result-summary hidden" aria-label="本次分析结果" aria-live="polite"></section>
     <!-- Messages -->
     <div class="chat-slot" id="chatSlot">
@@ -294,7 +312,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{o
           <div class="avatar">UP</div>
           <div>
             <div class="bubble">
-              <strong>选择影像，告诉我你想了解什么。</strong><br><br>
+              <strong>{% if autonomous_mode %}可以直接提问，也可以选择影像并说出你的需求。{% else %}选择影像，告诉我你想了解什么。{% endif %}</strong><br><br>
               例如：“看看建筑哪里变了”“标出图中的水面”“看看哪里比较热”。<br>
               还没想好时，可以先选择数据并发送，我会先说明可以进行哪些分析。<br><br>
               完成后会展示结果图、中文说明，以及哪些地方仍需要核实。
@@ -489,17 +507,25 @@ function renderDelivery(result) {
   const list = values => '<ul>' + (values || []).map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>';
   const safeFiles = (result.files || []).filter(x => typeof x.url === 'string' && x.url.startsWith('/api/result_file?path='));
   const previews = (result.previews || []).filter(x => safeFiles.some(f => f.url === x.url && f.kind === 'image'));
-  const labels = {candidate: '候选结果 · 尚需核实', generated: '结果已生成 · 尚需核实', failed: '分析未完成', blocked: '缺少分析条件'};
+  const scenes = result.scene_results || [];
+  const imageHtml = image => '<figure><a href="' + escapeAttr(image.url) + '" target="_blank" rel="noopener"><img src="' + escapeAttr(image.url) + '" alt="本次结果图：' + escapeAttr(image.name) + '"></a><figcaption>' + esc(image.name) + '（点击放大）</figcaption></figure>';
+  const sceneHtml = scenes.map(scene => {
+    const image = scene.preview && safeFiles.find(file => file.kind === 'image' && file.url === scene.preview.url);
+    return '<section class="result-scene"><h3>' + esc(scene.label) + '</h3>' + list(scene.findings) +
+      (image ? '<div class="result-images">' + imageHtml(image) + '</div>' : '') + '</section>';
+  }).join('');
+  const labels = {candidate: '候选结果 · 尚需核实', generated: '结果已生成 · 尚需核实', failed: '分析未完成', blocked: '缺少分析条件', answered: '说明回答'};
   panel.innerHTML = '<span class="result-state">' + esc(labels[result.completion] || '待核实') + '</span>' +
     '<h2>' + esc(result.headline) + '</h2><p>你想了解：' + esc(result.goal) + '</p>' +
     '<div class="result-checks"><p>' + esc(result.artifact_check) + '</p><p>' + esc(result.verification) + '</p></div>' +
-    '<div class="result-images">' + previews.map(x => '<figure><a href="' + escapeAttr(x.url) + '" target="_blank" rel="noopener"><img src="' + escapeAttr(x.url) + '" alt="本次结果图：' + escapeAttr(x.name) + '"></a><figcaption>' + esc(x.name) + '（点击放大）</figcaption></figure>').join('') + '</div>' +
-    (result.findings && result.findings.length ? '<h3>结果里记录了什么</h3>' + list(result.findings) : '') +
+    (scenes.length ? sceneHtml : '<div class="result-images">' + previews.map(imageHtml).join('') + '</div>') +
+    (!scenes.length && result.findings && result.findings.length ? '<h3>结果里记录了什么</h3>' + list(result.findings) : '') +
+    (result.requirements && result.requirements.length ? '<h3>你的要求完成了吗</h3>' + list(result.requirements.map(item => (item.met ? '已完成：' : '未完成：') + item.description)) : '') +
     '<h3>需要留意</h3>' + list(result.limitations) + '<h3>接下来怎么办</h3><p>' + esc(result.next_step) + '</p>' +
-    '<h3>下载本次结果</h3><div class="result-files">' + safeFiles.map(x => '<a href="' + escapeAttr(x.url + '&download=1') + '">' + esc(x.name) + '</a>').join('') + '</div>' +
-    '<details id="professionalDetails"><summary>展开专业详情：方法、任务记录与检查依据</summary><pre>模型补充说明（以检查依据为准，尚未独立验证）：\n' +
+    (safeFiles.length ? '<h3>下载本次结果</h3><div class="result-files">' + safeFiles.map(x => '<a href="' + escapeAttr(x.url + '&download=1') + '">' + esc(x.name) + '</a>').join('') + '</div>' : '') +
+    '<details id="professionalDetails"><summary>展开专业详情：方法、任务记录与检查依据</summary><pre>模型补充说明（以本次产物事实为准，识别准确性尚未独立验证）：\n' +
     esc(result.professional_report) + '\n\n机器检查依据：\n' + esc(result.professional_audit) + '\n\n' +
-    esc(JSON.stringify({task: result.task_contract, capability: result.capability}, null, 2)) + '</pre></details>';
+    esc(JSON.stringify({task: result.task_contract, capability: result.capability, scenes: result.scene_results}, null, 2)) + '</pre></details>';
 }
 
 function updateSelectedInputs() {
@@ -663,6 +689,22 @@ function escapeHtml(str) {
 }
 
 // ── Running State ──────────────────────────────────────
+function renderLLMActivity(activity, unknown = false) {
+  const badge = document.getElementById('deepseekStatus');
+  const active = Boolean(activity && activity.active) && isRunning && !unknown;
+  const total = activity && Number.isFinite(activity.total_requests) ? Math.max(0, Math.floor(activity.total_requests)) : 0;
+  badge.classList.toggle('busy', active);
+  badge.classList.toggle('unknown', unknown);
+  badge.classList.toggle('called', !unknown && !active && total > 0);
+  badge.setAttribute('aria-busy', String(active));
+  document.getElementById('deepseekStatusText').textContent = unknown ? 'DeepSeek状态待确认' : active ? 'DeepSeek正在调用' : total > 0 ? 'DeepSeek本轮已调用 ' + total + ' 次' : 'DeepSeek待命';
+  const seconds = activity && Number.isFinite(activity.elapsed_seconds) ? Math.max(0, Math.floor(activity.elapsed_seconds)) : 0;
+  const roles = {Manager:'理解需求', Scientist:'规划分析', Engineer:'编写处理步骤', Executor:'规划工具', SupervisorAgent:'检查数据', 'DeepSeek工具Agent':'规划工具', 'DeepSeek自主Agent':'理解与规划'};
+  document.getElementById('deepseekStatusDetail').textContent = unknown ? '连接恢复后更新' : active ?
+    (roles[activity.agent] || '分析任务') + (total > 0 ? ' · 本轮第 ' + total + ' 次请求' : '') + ' · 等待或接收响应 ' + seconds + '秒' :
+    total > 0 ? '当前未等待模型响应' : '';
+}
+
 function setRunning(running) {
   isRunning = running;
   const dot = document.getElementById('statusDot');
@@ -684,6 +726,7 @@ function setRunning(running) {
   } else {
     dot.className = 'status-dot';
     statusText.textContent = '就绪';
+    renderLLMActivity(null);
     sendBtn.disabled = false;
     autoBtn.disabled = false;
     stopBtn.disabled = true;
@@ -695,7 +738,7 @@ function setRunning(running) {
 // ── Polling ────────────────────────────────────────────
 function startPolling() {
   if (pollingTimer) return;
-  pollingTimer = setInterval(pollUpdates, 2000);
+  pollingTimer = setInterval(pollUpdates, 500);
   pollUpdates();
 }
 
@@ -726,6 +769,7 @@ function pollUpdates() {
         updateSelectedInputs();
       }
       setRunning(Boolean(data.running));
+      renderLLMActivity(data.llm_activity);
       if (data.status) {
         document.getElementById('statusText').textContent = data.status;
       }
@@ -746,7 +790,7 @@ function pollUpdates() {
         document.getElementById('traceBody').innerHTML = data.trace_html;
       }
     })
-    .catch(() => {})
+    .catch(() => { if (generation === pollGeneration) renderLLMActivity(null, true); })
     .finally(() => {
       if (generation === pollGeneration) pollInFlight = false;
     });

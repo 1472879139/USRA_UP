@@ -8,6 +8,9 @@
 # Real credentials stay local; config.example.json is safe to version
 /config.json
 /config.local.json
+/benchmark.local.json
+/gpu.local.json
+*.local.json
 .env
 .env.*
 !.env.example

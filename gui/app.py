@@ -61,8 +61,10 @@ class URSAGUI:
         "已终止": "done",
     }
 
-    def __init__(self):
+    def __init__(self, tool_agent=False, autonomous=False):
         self.config = load_config()
+        from tools.tool_agent_workflow import options
+        self._tool_agent_options = options(self.config.get("tool_agent"), enabled=tool_agent, autonomous=autonomous)
         self.model = self.config["model"]
         self.api_key = self.config["api_key"]
         self.base_url = self.config["base_url"]
@@ -70,7 +72,7 @@ class URSAGUI:
         # 清理上次运行的临时文件
         import shutil
         temp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "temp")
-        if os.path.exists(temp_dir):
+        if not self._tool_agent_options.get("autonomous") and os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
         os.makedirs(temp_dir, exist_ok=True)
 
@@ -82,6 +84,7 @@ class URSAGUI:
         self._ui_events: list[dict] = []
         self._ui_seq = 0
         self._running = False
+        self._benchmark_running = False
         self._thread: threading.Thread = None
         self._chat_history: list = []
         self._monitor_history: list = []
@@ -120,6 +123,10 @@ class URSAGUI:
 
     def _build_data_analysis_html(self) -> str:
         """使用 SupervisorAgent 智能分析 data/ 目录文件的遥感分析用途"""
+        if getattr(self, "_tool_agent_options", {}).get("autonomous"):
+            return "<p>自主Agent已启用：可直接回答、选择模型或编写代码处理；启动扫描不调用付费模型。</p>"
+        if getattr(self, "_tool_agent_options", {}).get("enabled"):
+            return "<p>工具Agent已启用：选择影像并提出需求，确认后DeepSeek选择工具；启动扫描不调用付费模型。</p>"
         try:
             from tools.io_kit import scan_data_directory
             from agents.supervisor_agent import SupervisorAgent
@@ -246,7 +253,13 @@ class URSAGUI:
 
     def _setup_session(self):
         """初始化会话和消息路由"""
-        self.session = Session()
+        self.session = Session(tool_agent_options=getattr(self, "_tool_agent_options", {}))
+        if self.session.tool_agent_options.get("enabled"):
+            def tool_progress(event):
+                label = ("DeepSeek正在规划第" + str(event.get("turn", "")) + "轮工具调用" if event["event"] == "planning" else
+                         "工具" + event.get("name", "") + ("开始执行" if event["event"] == "tool_start" else "已返回"))
+                self.ui_queue.put({"type": "system", "data": label})
+            self.session.on_event("tool_agent_progress", tool_progress)
         self.session.start()
 
         for agent in self.agents.values():
@@ -267,6 +280,20 @@ class URSAGUI:
     def _process_flow(self, user_input: str, auto_pilot: bool = False):
         """后台线程：运行分析流程"""
         try:
+            if getattr(self, "_tool_agent_options", {}).get("autonomous"):
+                if user_input.strip().lower() in {"end", "exit", "终止"}:
+                    self.session.terminate("用户主动终止")
+                    return
+                if self.session.autonomous_state.get("awaiting_input"):
+                    self.session.revision_feedback.append(user_input)
+                else:
+                    self.session.user_request = user_input
+                self.session.confirmed_task = self.session.user_request
+                from tools.autonomous_workflow import run
+                executor = self.agents["executor"]
+                run(self.session, executor._client, executor.model,
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), notify=self.ui_queue.put)
+                return
             supervisor: SupervisorAgent = self.agents["supervisor"]
             if auto_pilot:
                 supervisor.enable_auto_pilot()
@@ -455,7 +482,7 @@ class URSAGUI:
         """启动或继续分析流程"""
         with self._ui_lock:
             worker = getattr(self, "_thread", None)
-            if self._running or (worker is not None and worker.is_alive()):
+            if self._running or getattr(self, "_benchmark_running", False) or (worker is not None and worker.is_alive()):
                 return {"success": False, "busy": True,
                         "message": "系统正在运行中，请等待当前分析完成。"}
 
@@ -480,7 +507,9 @@ class URSAGUI:
                 and self.session.state_machine.get_current_phase() == ConversationPhase.MANAGER_CONFIRM
                 and bool(self.agents)
             )
-            if (not is_continue and not is_manager_revision) or not self.agents:
+            awaiting = bool(getattr(self, "_tool_agent_options", {}).get("autonomous") and self.session
+                            and getattr(self.session, "autonomous_state", {}).get("awaiting_input"))
+            if (not is_continue and not is_manager_revision and not awaiting) or not self.agents:
                 self._chat_history = []
                 self._monitor_history = []
                 self._raw_history = []
@@ -698,8 +727,11 @@ class URSAGUI:
         else:
             status = "就绪"
 
+        auto_state = getattr(self.session, "autonomous_state", {}) if self.session else {}
+        if not self._running:
+            status = {"answered": "已回答问题", "needs_input": "等待补充信息"}.get(auto_state.get("status"), status)
         delivery = self.session.result_delivery if self.session else None
-        if self.session and self.session.is_terminated() and self.session.user_request:
+        if self.session and self.session.is_terminated() and self.session.user_request and not getattr(self.session, "autonomous_state", {}):
             from tools.result_delivery import build_result_delivery
             delivery = build_result_delivery(
                 self.session, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -708,10 +740,14 @@ class URSAGUI:
             "phase": phase,
             "status": status,
             "running": self._running,
+            "llm_activity": (self.session.get_llm_activity() if self.session and hasattr(self.session, "get_llm_activity")
+                             else {"active": False, "agent": "", "request_count": 0, "elapsed_seconds": 0,
+                                   "total_requests": 0, "finished_requests": 0}),
             "done": done,
             "waiting_confirm": waiting_confirm,
             "result_delivery": delivery or None,
             "selected_inputs": self.session.selected_inputs if self.session else [],
+            "autonomous_state": getattr(self.session, "autonomous_state", {}) if self.session else {},
             "monitor_html": self._render_monitor_html(),
             "trace_html": self._render_trace_html(),
         }
@@ -859,7 +895,7 @@ class URSAGUI:
         """重置会话，开始新对话"""
         with self._ui_lock:
             worker = getattr(self, "_thread", None)
-            if self._running or (worker is not None and worker.is_alive()):
+            if self._running or getattr(self, "_benchmark_running", False) or (worker is not None and worker.is_alive()):
                 return {"success": False, "busy": True,
                         "message": "后台任务尚未退出，请稍后再新建会话。"}
             self._chat_history = []
@@ -883,15 +919,20 @@ class URSAGUI:
 
 # === Flask 应用 ===
 
-def create_app(controller=None) -> Flask:
+def create_app(controller=None, tool_agent=False, autonomous=False) -> Flask:
     """创建 Flask 应用"""
     template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
     app = Flask(__name__, template_folder=template_dir)
-    ctrl = controller if controller is not None else URSAGUI()
+    ctrl = controller if controller is not None else URSAGUI(tool_agent=tool_agent, autonomous=autonomous)
     app.config["PROJECT_ROOT"] = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     app.config["MAX_CONTENT_LENGTH"] = 128 * 1024 * 1024
     from gui.data_files import register_data_routes
     register_data_routes(app, ctrl)
+    if os.path.isfile(os.path.join(app.config["PROJECT_ROOT"], "benchmarks", "catalog.py")):
+        from gui.benchmarks import register_benchmark_routes
+        register_benchmark_routes(app, ctrl)
+    from gui.assessment import register_assessment_routes
+    register_assessment_routes(app, ctrl)
 
     @app.errorhandler(413)
     def upload_too_large(error):
@@ -900,7 +941,9 @@ def create_app(controller=None) -> Flask:
     @app.route('/')
     def index():
         data_html = ctrl._data_summary_html + ctrl._data_analysis_html
-        return render_template('index.html', model=ctrl.model, data_html=data_html)
+        return render_template('index.html', model=ctrl.model, data_html=data_html,
+                               benchmark_available=os.path.isfile(os.path.join(os.path.dirname(__file__), "..", "benchmarks", "catalog.py")),
+                               autonomous_mode=getattr(ctrl, "_tool_agent_options", {}).get("autonomous", False))
 
     @app.route('/api/chat', methods=['POST'])
     def api_chat():
@@ -963,8 +1006,8 @@ def create_app(controller=None) -> Flask:
     return app
 
 
-def launch_app(server_name: str = "127.0.0.1", server_port: int = 7860):
+def launch_app(server_name: str = "127.0.0.1", server_port: int = 7860, tool_agent=False, autonomous=False):
     """启动 Flask 应用"""
-    app = create_app()
+    app = create_app(tool_agent=tool_agent, autonomous=autonomous)
     print(f"USRA_UP v1.14 界面启动: http://{server_name}:{server_port}")
     app.run(host=server_name, port=server_port, debug=False, threaded=True)

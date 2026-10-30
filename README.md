@@ -4,7 +4,27 @@
 
 项目仓库：[1472879139/USRA_UP](https://github.com/1472879139/USRA_UP)。项目展示名称统一为 `USRA_UP`；已有Conda环境仍沿用 `ursa-up`，不需要因改名重建环境。
 
+## 当前自主Agent入口（FIX-025）
+
+新入口 `python main.py --autonomous-agent --port 7864`：DeepSeek可直接解释、选择专用工具/模型、生成Python或组合处理；代码在独立断网Docker中执行，错误回传后有限修复；增加明确来源的遥感数据适配、原分辨率分块拼接和按用户要求逐项验收。普通“发送”直接执行，缺必要信息时才询问。原默认角色链和 `--tool-agent` 路径保留。
+
+首次通用代码准备需启动Docker Linux引擎并运行 `python deploy/python_runtime/prepare.py`；本批开发机器已经准备。完整启动、示例、16工具和边界见[自主Agent使用说明](docs/autonomous-agent.md)，修改及验证见[FIX-025图文幻灯片](docs/fixes/2026-10-29-025-autonomous-agent.html)。当前368项Python、35项网页回归及9项真实容器检查通过；模型响应模拟，真实API/GPU请求0，不代表选路或遥感精度已实测。本轮仅本地未提交修改，以下各批测试数量与状态为历史快照。
+
+## DeepSeek调用状态
+
+FIX-024将调用标志改为对话区上方的整行状态条：请求中显示“DeepSeek正在调用”，结束后保留“本轮已调用N次”，短请求也能留下记录；新会话归零，轮询500毫秒。见[当前状态与重启说明](docs/deepseek-activity-visibility.md)及[图文记录](docs/fixes/2026-10-28-024-deepseek-activity-visibility.html)。本批332项Python、33项界面离线测试通过，另经真实Flask接口与模拟SDK进行浏览器核验；未新增付费调用。此前[FIX-023](docs/deepseek-activity.md)保留真实任务复核和当时状态方案。
+
+## DeepSeek自主调用工具预览
+
+FIX-022在原角色链中新增DeepSeek结构化工具调用：模型从12个受控工具中选择步骤，接收真实返回后继续规划，支持分类、类别筛选、面积统计与制图组合。以 `python main.py --tool-agent --port 7863` 启用；默认旧路径保留。详见[启动、工具清单、接口与限制](docs/deepseek-tool-agent.md)和[图文记录](docs/fixes/2026-10-28-022-deepseek-tool-agent.html)。本批319项Python、24项界面离线检查通过；未发起真实付费API联调，首次真实tools兼容性及模型选择行为仍待验证。已有模型服务和权重不用更新。
+
+## 当前整合预览
+
+FIX-021将本地水体、地表温度、远程Prithvi水体和TerraMind Small地物分类整合到同一Agent入口。具体输入条件、服务器更新、端口7862启动与一句话测试见[整合版使用说明](docs/agent-capability-integration.md)，变更与验证见[图文记录](docs/fixes/2026-10-28-021-agent-capability-integration.html)。本批为本地未提交修改，原工作区保留；288项Python及24项界面测试通过，新增TerraMind常驻服务的真实GPU联调待用户执行。下文FIX-008～020段落中的独立预览和待办描述属于各批历史快照，当前整合状态以FIX-021为准。
+
 ## 多人协作
+
+两人开始开发请先看[从GitHub拉取、配置、运行与API联调](docs/developer-setup.md)。应用分支为 `codex/autonomous-task-agent`，模型服务分支为 `codex/model-service-handoff`；新模型API已部署，网页接入由应用方继续实现，不能把旧 `gpu.local.json` 当成统一API配置。
 
 开发前请阅读[多人协作开发规范](CONTRIBUTING.md)。采用独立任务分支与PR审查流程，禁止直接向 `main` 推送开发改动；规范包含共享接口、测试、环境依赖、冲突处理和合并检查要求。GitHub分支保护及CI需由维护者另行配置，文档不会自动启用这些限制。
 
@@ -34,6 +54,21 @@ python main.py
 在另一台电脑使用当前功能分支时，按[跨电脑运行与资料迁移说明](docs/migrate-to-another-computer.md)克隆正确分支、重建环境，并单独配置API和复制所需影像。
 
 ## 输出与测试
+
+FIX-013新增[地表温度工具与外部产品一致性评价](docs/lst-agent.md)：选择已有 `lst_01/thermal_auxiliary.tif`，输入“帮我看看哪里比较热”，可得到中文温度图、摄氏度统计、相对高温位置和无效范围。只支持已提供大气辅助量、发射率和MTL常数的Landsat 8样本；普通RGB不生成假温度。结束后在答卷页独立计算温度差与覆盖率；与同源USGS产品一致不等于独立地面测温准确。当前仅本地未发布，详见[本批图文记录](docs/fixes/2026-10-26-013-lst-agent.html)。
+
+普通对话现已接入固定水体工具，例如输入“帮我提取water_01和water_02的水体，告诉我有多少”，可走已安装工具的完整处理路径。正常GUI/CLI只检查产物与统计，不读取参考答案。开发者在任务结束后通过 `http://127.0.0.1:7860/assessment` [封存答卷并独立评分](docs/blind-assessment.md)，分数不反馈到本次任务；当前不代表所有方向均已接入。
+
+已有[固定方法验收基础](docs/validated-benchmarks.md)：启动后打开 `http://127.0.0.1:7860/benchmarks`，可运行固定水体基线并与人工答案独立评分，不调用模型。目前17例可检查材料完整性，10例水体接入自动评分；这与Agent交卷测评分别使用。[4个新增场景首次评测](docs/water-generalization-validation.md)发现两例明显漏检，相关质量提示现由外部评分展示，普通新影像不凭空知道漏检率。其他方向与跨数据集泛化尚待验证。参考答案单独保存在项目外，需要评分端私有 `benchmark.local.json` 配置，不能只复制 `data/`。
+
+此前截至2115157的[累计修改记录](docs/source-to-current-changelog.md)提供源码基线、阶段演变、逐文件清单、验证证据及发布状态，也可查看[当时的累计图文幻灯片](docs/fixes/2026-10-23-source-to-current-overview.html)。本轮新增验收功能单独记录于[FIX-008图文幻灯片](docs/fixes/2026-10-25-008-validated-water-benchmark.html)。
+
+后续批次分别见[FIX-009：对话工具接入](docs/fixes/2026-10-25-009-water-agent-integration.html)及[FIX-010：新场景与话术稳定性](docs/fixes/2026-10-25-010-water-generalization.html)；各批记录保留当时范围与验证快照。
+
+当前行为以[FIX-011：普通分析不读答案、交卷后独立评价](docs/fixes/2026-10-26-011-blind-assessment.html)为准。已提供干净运行包准备工具；本机只验证应用路径分离，严格操作系统权限隔离尚未启用，详见完整说明。
+
+[FIX-012新增两种方法与输入选路实验](docs/water-method-library.md)：十幅场景共40次离线处理后统一评分。旧困难样本改善，但新四幅平均成绩未改善，因此未替换默认方法。可用 `python -m benchmarks.compare --case water_05 --output exports/water_methods_manual_01`生成独立比较报告；Manager响应模拟，真实模型请求0。
+FIX-014提供[远程Prithvi工具与无答案分歧检查](docs/prithvi-remote-agent.md)：在私有SSH转发下调用4090D常驻模型，锁定输入、返回包与方法，输出候选水体和指数对照。仅适配已声明来源及编码的Sentinel-2 L1C、13波段、512×512影像；默认不启用。查看[图文升级记录](docs/fixes/2026-10-27-014-prithvi-remote-agent.html)。本分支为独立预览，桌面原目录未提交的FIX-008～013未整合，原版本仍保留；真实GPU服务及真实DeepSeek调度尚待用户联调。
 
 [从GitHub源码到当前本地版本的累计修改记录](docs/source-to-current-changelog.md)提供源码基线、阶段演变、逐文件清单、验证证据及发布状态；也可查看[累计图文幻灯片](docs/fixes/2026-10-23-source-to-current-overview.html)。
 

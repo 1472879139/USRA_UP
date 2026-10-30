@@ -218,3 +218,17 @@ def print_tool_catalog():
                 doc = (func.__doc__ or "").strip().split("\n")[0]
                 print(f"  {name}: {doc}")
     print("\n" + "=" * 60)
+
+
+def get_agent_tool_schemas():
+    """返回新工具Agent白名单；与旧函数注册接口保持兼容。"""
+    from copy import deepcopy
+    from .agent_tools import TOOL_SPECS
+    return deepcopy(TOOL_SPECS)
+
+
+def get_autonomous_tool_schemas():
+    """自主模式兼容扩展，旧工具清单不变。"""
+    from copy import deepcopy
+    from .autonomous_tools import AUTONOMOUS_SPECS
+    return deepcopy(AUTONOMOUS_SPECS)

@@ -196,6 +196,19 @@ class EngineerAgent(BaseAgent):
 
     def handle_message(self, message: Message) -> Message:
         self.session.state_machine.force_transition(ConversationPhase.ENGINEER_CODING)
+        if message.metadata.get("tool_agent_request"):
+            from tools.tool_agent_workflow import code_message
+            return code_message(self.session, message.metadata["tool_agent_request"])
+        if message.metadata.get("remote_tool_request"):
+            from tools.remote_models import tool_message
+            return tool_message(self.session, message.metadata["remote_tool_request"])
+        if getattr(self.session, "remote_tool_plan", {}) and message.msg_type == MessageType.ERROR:
+            return Message(sender=self.name, receiver="Manager", msg_type=MessageType.ERROR,
+                           content="固定GPU工具未通过执行或核验，请检查隧道、服务及输入；不让模型改写已锁定算法。")
+
+        if self.session.tool_plan or message.metadata.get("tool_request"):
+            from tools.installed_workflow import tool_code_message
+            return tool_code_message(self.session, message.metadata.get("tool_request", {}))
 
         # Executor 返回错误，修复代码
         if message.sender == "Executor" and message.msg_type == MessageType.ERROR:

@@ -4,6 +4,14 @@ import re
 from urllib.parse import quote
 
 
+def has_unsupported_accuracy_claim(text):
+    """拦截常见无答案精度数字；不是覆盖所有表述的语义判别器。"""
+    metric = r"(?:准确率|精确率|召回率|找回率|漏检率|误报率|F1(?:分数)?|IoU|RMSE|MAE|均方根误差|平均绝对误差|测温误差)"
+    return bool(re.search(metric + r"[^\n。；]{0,14}\d+(?:\.\d+)?\s*%?", text, re.I) or
+                re.search(r"\d+(?:\.\d+)?\s*%[^\n。；]{0,10}" + metric, text, re.I) or
+                re.search(r"(?:已|已经)(?:与|通过)[^\n。；]{0,12}(?:人工答案|参考答案)[^\n。；]{0,8}(?:核对|验证|对照)", text))
+
+
 def result_path(session, project_root, name):
     """只允许当前任务核验清单内的实际文件，不能借链接读取配置或旧任务。"""
     if name not in session.result_audit.get("files", []):
@@ -82,23 +90,68 @@ def build_result_delivery(session, project_root, report=""):
     elif not previews and preview_required:
         headline = "已生成部分文件，但尚未提供可查看的结果图。"
     findings = []
+    scenes = [] if failed or blocked or not files else [dict(scene) for scene in audit.get("scenes", [])]
     rows = audit.get("statistics", [])
-    if rows and not failed:
-        first = (rows[0].get("source"), rows[0].get("scheme"))
+    if scenes:
+        for scene in scenes:
+            findings.append(scene["label"] + "：" + "；".join(scene["findings"]))
+        if kind == 'lst':
+            from .lst_tool import LIMITATION
+            headline = '已生成地表温度图、摄氏度统计和本图相对高温位置。'
+            limits.append(LIMITATION)
+            if any('incomplete_prediction' in scene.get('quality_flags', []) for scene in scenes):
+                headline = '已生成可用区域的地表温度；云、阴影或无效位置留空。'
+        else:
+            headline = "已逐幅生成水体候选图、面积与占比，请结合每幅图的检查与限制查看。"
+            limits = [reason for reason in limits if "专业识别模型" not in reason]
+            limits.append("固定指数方法可能受云、阴影、积雪和复杂地表影响；公开回归成绩不能外推到其他地区。")
+            if any("incomplete_prediction" in scene.get("quality_flags", []) for scene in scenes):
+                headline = "已生成水体候选结果，部分区域尚未确认，请逐幅查看。"
+    elif rows and not failed:
+        groups = {(row.get("source"), row.get("scheme")) for row in rows}
         for row in rows:
-            if (row.get("source"), row.get("scheme")) == first:
-                findings.append(f"统计表记录：{row['class_name']}占本次统计范围的 {row['percent']:.2f}%。")
-        findings = findings[:8]
-    return {"version": 1, "completion": completion, "headline": headline,
+            prefix = Path(row.get("source", "统计表")).name + "：" if len(groups) > 1 else "统计表记录："
+            findings.append(f"{prefix}{row['class_name']}占本次统计范围的 {row['percent']:.2f}%。")
+        findings = findings[:24]
+    verification = "正常分析未读取人工答案，识别准确性尚未验证，需交卷后独立测评；文件与统计一致不能证明识别正确。"
+    if kind == 'lst':
+        verification = '正常分析未读取参考答案，温度误差尚未验证；单位、物理条件和数值一致性检查不能代替实测验证。'
+    next_step = ("请调整需求或补充缺少的数据后再试。" if failed or blocked else
+                 "先查看候选图和限制；开发者可封存答卷后进行外部测评。")
+    for scene in scenes:
+        path = scene.get("preview_path")
+        scene["preview"] = next((file for file in previews if path and file["url"] ==
+                                "/api/result_file?path=" + quote(path, safe="")), None)
+    delivery = {"version": 1, "completion": completion, "headline": headline,
             "goal": (contract.get("original_request") or session.user_request) +
                     ("；已提出的调整：" + "；".join(contract["revisions"]) if contract.get("revisions") else ""),
             "findings": findings, "limitations": list(dict.fromkeys(limits)),
             "artifact_check": "文件或统计检查未通过" if failed else "本次文件与统计已执行检查" if audit else "尚无文件检查证据",
-            "verification": "还没有与已知正确的结果进行独立对照，准确性尚未验证。",
-            "next_step": "请调整需求或补充缺少的数据后再试。" if failed or blocked else "先查看结果图；需要精确识别时，继续进行独立验证。",
+            "verification": verification, "scene_results": scenes,
+            "next_step": next_step,
             "files": files, "previews": previews[:4], "professional_report": report,
             "professional_audit": audit.get("facts", ""), "task_contract": contract,
             "capability": capability}
+    reason = session.get_terminate_reason()
+    if (failed and session.remote_tool_plan and "ModuleNotFoundError" in reason
+            and ("No module named 'tools'" in reason or 'No module named "tools"' in reason)):
+        delivery.update({
+            "completion": "failed",
+            "headline": "本机分析工具未能启动，本次没有影像分析结果。",
+            "findings": ["本机执行进程没有加载到项目工具，任务在请求GPU之前停止。"],
+            "limitations": ["本次尚未处理影像，没有结果可用于判断识别效果。"],
+            "artifact_check": "工具启动失败，尚未生成可核验的结果文件",
+            "verification": "本次未完成分析，无法评价识别准确性。",
+            "next_step": "请重启更新后的本机预览版，再使用同一影像发起新任务。",
+            "professional_audit": audit.get("facts") or reason,
+        })
+    if audit.get("tool_agent"):
+        from .tool_agent_workflow import enrich_delivery
+        return enrich_delivery(delivery, audit, session.result_subdir)
+    if audit.get("remote_water") or audit.get("remote_landcover"):
+        from .remote_models import enrich_delivery
+        return enrich_delivery(delivery, audit)
+    return delivery
 
 
 def render_plain_delivery(delivery):

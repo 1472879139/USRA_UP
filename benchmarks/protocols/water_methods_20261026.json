@@ -1,0 +1,73 @@
+{
+  "batch": "20261026_methods",
+  "source": "https://zenodo.org/records/5205674",
+  "archive_url": "https://zenodo.org/records/5205674/files/dset-s2.zip?download=1",
+  "archive_size": 611792578,
+  "selection_rule": "仅按已保存ZIP目录：在前六例采集之外，对val_scene逐采集取排序首幅、成员不超过48MB；剩余四采集全部纳入，不读取新影像或标签后挑选。",
+  "development_cases": [
+    "water_01",
+    "water_02",
+    "water_03",
+    "water_04",
+    "water_05",
+    "water_06"
+  ],
+  "samples": [
+    {
+      "id": "water_07",
+      "image_member": "dset-s2/val_scene/S2A_L2A_20190508_N0212_R078_6Bands_S1.tif",
+      "reference_member": "dset-s2/val_truth/S2A_L2A_20190508_N0212_R078_S1_Truth.tif",
+      "member_size": 10893481,
+      "crc32": "01bba708"
+    },
+    {
+      "id": "water_08",
+      "image_member": "dset-s2/val_scene/S2A_L2A_20190724_N0213_R033_6Bands_S1.tif",
+      "reference_member": "dset-s2/val_truth/S2A_L2A_20190724_N0213_R033_S1_Truth.tif",
+      "member_size": 14111905,
+      "crc32": "ac1224b8"
+    },
+    {
+      "id": "water_09",
+      "image_member": "dset-s2/val_scene/S2A_L2A_20190725_N0213_R054_6Bands_S1.tif",
+      "reference_member": "dset-s2/val_truth/S2A_L2A_20190725_N0213_R054_S1_Truth.tif",
+      "member_size": 4976689,
+      "crc32": "c8bcfe54"
+    },
+    {
+      "id": "water_10",
+      "image_member": "dset-s2/val_scene/S2B_L2A_20190620_N0212_R047_6Bands_S1.tif",
+      "reference_member": "dset-s2/val_truth/S2B_L2A_20190620_N0212_R047_S1_Truth.tif",
+      "member_size": 20260369,
+      "crc32": "ec5487c7"
+    }
+  ],
+  "methods": [
+    "mndwi_zero",
+    "mndwi_otsu"
+  ],
+  "candidate_router": "water-router-v1",
+  "routing_limits": {
+    "minimum_pixels": 1024,
+    "minimum_separability": 0.75,
+    "minimum_class_fraction": 0.01,
+    "maximum_threshold_shift": 0.05
+  },
+  "promotion_gate": {
+    "new_macro_f1_min_improvement": 0.02,
+    "max_individual_f1_drop_all_cases": 0.05,
+    "all_expected_cases_completed_and_scored": true
+  },
+  "source_hashes": {
+    "tools/water_tool.py": "9dba2a0e001709fc91e1f2ce7b7fa0e0fd88d095043bd1dd3ee05739f5706c79",
+    "tools/water_methods.py": "b76b8919a3de9e92a1720285bc6f4d86247094d1467c6c8079525c0f28768063",
+    "tools/water_workflow.py": "455f2354d8353ef29bef9b3ac84b312faff99488435d8d688bbfb341d1d89684",
+    "tools/water_audit.py": "9b82613c80e7c9ade6a922f705580b645c198c8409dc06a63820354c3edc4ce8"
+  },
+  "phrases": [
+    "帮我提取{case}里的水体，告诉我有多少。",
+    "帮我圈出{case}中的水面，看看占多大面积。"
+  ],
+  "no_label_tuning": "全部预测、输入路由与封存先完成，再读取答案评分。新场景结果查看后不改规则追分。准入失败保留基线默认；准入通过只切换AUTO_ENABLED发布开关，规则和算法不变。",
+  "scope": "同一ESWD数据集按采集前缀排除前六例；未证明地理完全不重叠。Manager模拟的流程验收不代表真实模型理解能力。"
+}

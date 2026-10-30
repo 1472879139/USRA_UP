@@ -1,6 +1,7 @@
 """会话管理 — 整合 MessageBus、StateMachine，管理整个对话生命周期"""
 
 import threading
+import time
 import uuid
 from datetime import datetime
 from typing import List, Optional, Callable
@@ -13,7 +14,7 @@ from .trace_collector import TraceCollector
 class Session:
     """会话管理器，协调所有 Agent 的交互"""
 
-    def __init__(self, session_id: str = None):
+    def __init__(self, session_id: str = None, tool_agent_options=None):
         self.session_id = session_id or datetime.now().strftime("%Y%m%d_%H%M%S")
         self.bus = MessageBus()
         self.state_machine = StateMachine()
@@ -26,6 +27,9 @@ class Session:
         self._terminate_reason: str = ""
         self._lock = threading.RLock()
         self._event_callbacks: dict = {}  # 事件回调
+        self._llm_requests: dict = {}  # 仅记录本会话在途请求，不保存内容或认证信息
+        self._llm_total_requests = 0
+        self._llm_finished_requests = 0
         # 当前任务的关键交接文本。编排器应从这里读取已确认任务，
         # 而不能把 approve 等控制指令当作分析需求传给下游 Agent。
         self.user_request: str = ""
@@ -38,6 +42,15 @@ class Session:
         self.task_contract: dict = {}
         self.task_capability: dict = {}
         self.result_delivery: dict = {}
+        self.tool_plan: dict = {}
+        self.submission: dict = {}  # 交卷收据；外部评分不得写回会话
+        # 仅存储本轮固定远程工具计划；由Scientist锁定，Engineer/Executor/Supervisor消费。
+        self.remote_tool_plan: dict = {}
+        # 仅存储工具调度选项、锁定计划和执行收据；不包含API认证信息。
+        self.tool_agent_options: dict = dict(tool_agent_options or {})
+        self.tool_agent_plan: dict = {}
+        self.tool_agent_receipt: dict = {}
+        self.autonomous_state: dict = {}  # 本次目标、完成项与待补充信息；不含模型认证
         # 注册工具名供追踪器检测 stdout 中的工具调用
         try:
             from tools.registry import get_all_tool_names
@@ -74,6 +87,30 @@ class Session:
 
     def get_terminate_reason(self) -> str:
         return self._terminate_reason
+
+    def begin_llm_call(self, agent: str) -> str:
+        """记录一次实际API请求；返回仅用于finally清理的内部标识。"""
+        token = uuid.uuid4().hex
+        with self._lock:
+            self._llm_requests[token] = {"agent": agent, "started": time.monotonic()}
+            self._llm_total_requests += 1
+        return token
+
+    def end_llm_call(self, token: str) -> None:
+        """结束对应请求；旧请求返回不会清除其他仍在进行的请求。"""
+        with self._lock:
+            if self._llm_requests.pop(token, None) is not None:
+                self._llm_finished_requests += 1
+
+    def get_llm_activity(self) -> dict:
+        """供轮询/导出读取的状态快照；会话终止后不保留等待动画。"""
+        with self._lock:
+            pending = list(self._llm_requests.values()) if self._active and not self._terminated else []
+            return {"active": bool(pending), "agent": pending[-1]["agent"] if pending else "",
+                    "request_count": len(pending),
+                    "total_requests": self._llm_total_requests,
+                    "finished_requests": self._llm_finished_requests,
+                    "elapsed_seconds": max(0, int(time.monotonic()-min(item["started"] for item in pending))) if pending else 0}
 
     def register_agent(self, agent) -> None:
         """向会话注册 Agent"""
@@ -116,6 +153,14 @@ class Session:
             "task_contract": self.task_contract,
             "task_capability": self.task_capability,
             "result_delivery": self.result_delivery,
+            "tool_plan": self.tool_plan,
+            "submission": self.submission,
+            "llm_activity": self.get_llm_activity(),
+            "remote_tool_plan": self.remote_tool_plan,
+            "tool_agent_options": self.tool_agent_options,
+            "tool_agent_plan": self.tool_agent_plan,
+            "tool_agent_receipt": self.tool_agent_receipt,
+            "autonomous_state": self.autonomous_state,
         }
         if hasattr(self, 'tracer') and self.tracer:
             result["trace_summary"] = self.tracer.get_summary()

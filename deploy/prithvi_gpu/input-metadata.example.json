@@ -1,0 +1,7 @@
+{
+  "sensor": "Sentinel-2",
+  "product_level": "L1C",
+  "encoding": "DN/10000",
+  "bands": ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B10", "B11", "B12"],
+  "source": "填写实际数据来源；示例不是对任意输入来源的证明"
+}
