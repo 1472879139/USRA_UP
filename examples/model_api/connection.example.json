@@ -1,0 +1,4 @@
+{
+  "base_url": "https://MODEL_HOST/ursa-model-api",
+  "api_key": "在本机私有连接文件填写，不要提交Git"
+}

@@ -1,5 +1,11 @@
 # 修改记录：核验修复与普通用户结果交付
 
+- [FIX-027：GitHub分工发布、开发者配置与运行说明](2026-10-30-027-github-developer-setup.html)
+- [两分支拉取、DeepSeek/GPU配置、样例与维护职责](../developer-setup.md)
+
+- [FIX-026：独立模型 API、内网中转与双人开发交接](2026-10-30-026-model-api-handoff.html)
+- [API v1 契约、分工和应用方验收](../model-service-handoff.md)
+
 - [从GitHub源码到当前本地版本：累计图文总览](2026-10-23-source-to-current-overview.html)
 - [完整累计修改记录与逐文件清单](../source-to-current-changelog.md)
 

@@ -6,6 +6,10 @@
 
 ## 多人协作
 
+两人开始开发请先看[从GitHub拉取、配置、运行与API联调](docs/developer-setup.md)：分别拉最新应用和模型服务分支，配置DeepSeek与独立GPU凭据，获取公开样例；同时明确API已部署、网页接入仍待应用方完成。
+
+模型维护与应用开发可按[模型 API v1 交接说明](docs/model-service-handoff.md)分别推进：独立的 `model_service/` 提供 DA V2 与 TerraMind Small 能力，应用方使用无 GPU 依赖的 `model_client.py`；附本机模拟服务、OpenAPI 与[运维说明](docs/model-api-operations.md)。本次接口分支不改变现有主网页调用路径，网页的两组 API 配置与工具调度由应用方接入。
+
 开发前请阅读[多人协作开发规范](CONTRIBUTING.md)。采用独立任务分支与PR审查流程，禁止直接向 `main` 推送开发改动；规范包含共享接口、测试、环境依赖、冲突处理和合并检查要求。GitHub分支保护及CI需由维护者另行配置，文档不会自动启用这些限制。
 
 首次协作可直接按规范第4节执行“同步main → 任务分支开发 → 本地提交 → 推送 → PR审查 → 合并后同步”，无写权限成员使用其中的Fork流程。使用Codex时从项目根目录开始，并读取 [AGENTS.md](AGENTS.md) 和规范第14节；文档中的推送与合并示例不构成自动发布授权。

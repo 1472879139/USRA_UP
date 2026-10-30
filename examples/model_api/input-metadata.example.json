@@ -1,0 +1,6 @@
+{
+  "sensor": "Sentinel-2",
+  "product_level": "L2A",
+  "encoding": "dn_10000",
+  "bands": ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B11", "B12"]
+}

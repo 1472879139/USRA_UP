@@ -65,3 +65,9 @@ dist/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# 独立模型API的私有连接、数据库、上传与合成演示产物
+*.local.json
+/.model-service/
+/model-api-data/
+/examples/model_api/mock-fixtures/
