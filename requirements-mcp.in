@@ -1,0 +1,5 @@
+# 独立Python3.12环境；不安装到Conda GIS或模型环境中。
+mcp==2.3.0
+httpx==0.28.1
+jsonschema==4.26.0
+uvicorn==0.54.0

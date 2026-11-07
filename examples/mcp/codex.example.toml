@@ -1,0 +1,5 @@
+# 地址为拟部署示例；真实地址和令牌单独交付。
+[mcp_servers.ursa]
+url = "https://你的公网IP/ursa-mcp/mcp"
+bearer_token_env_var = "URSA_MCP_TOKEN"
+tool_timeout_sec = 45

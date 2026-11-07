@@ -84,6 +84,10 @@ def build(destination, application_source=None):
         names += ["model_client.py", "examples/model_api/call_api.py", "examples/model_api/start_mock.ps1",
                   "examples/model_api/connection.example.json", "docs/model-service-handoff.md", "docs/model-api-operations.md",
                   "docs/fixes/2026-10-30-026-model-api-handoff.html", "AGENTS.md", "CONTRIBUTING.md"]
+        names += ["tool_client_v2.py", "requirements-tools-v2.lock", "requirements-tools-v2.in",
+                  "docs/tool-api-v2.md", "docs/tool-registry.md", "docs/tool-v2-deployment.md",
+                  "examples/tool_v2/adapter_template.py",
+                  "examples/tool_v2/local_demo.py"]
         copy_paths(ROOT, staging, names)
         (staging / "openapi.json").write_text(json.dumps(specification(), ensure_ascii=False, indent=2), encoding="utf-8")
         (staging / "开始使用.md").write_text(

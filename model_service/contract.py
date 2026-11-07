@@ -1,5 +1,4 @@
 """双方共享的模型API契约；新增模型不得静默修改任务含义。"""
-from copy import deepcopy
 import hashlib
 import json
 
@@ -90,22 +89,20 @@ def validate_metadata(data):
     return {**data, "bands": normalized}
 
 
-def validate_job(data):
+def validate_job(data, registry=None):
     if set(data) != {"capability_id", "input_id", "metadata"}:
         raise APIError(400, "INVALID_REQUEST", "提交字段必须是capability_id、input_id、metadata")
-    if not isinstance(data["capability_id"], str) or data["capability_id"] not in {item["id"] for item in CAPABILITIES}:
-        raise APIError(400, "CAPABILITY_UNSUPPORTED", "请求的能力尚未注册，未自动换用其他模型")
+    from .registry import ToolRegistry
+    registry = registry if registry is not None else ToolRegistry()
+    try:
+        registry.definition(data["capability_id"])
+    except APIError as exc:
+        raise APIError(400, "CAPABILITY_UNSUPPORTED", "请求的能力尚未注册，未自动换用其他模型") from exc
     if not isinstance(data["input_id"], str) or len(data["input_id"]) != 32 or any(x not in "0123456789abcdef" for x in data["input_id"]):
         raise APIError(400, "INVALID_INPUT_ID", "input_id格式错误")
-    return {**data, "metadata": validate_metadata(data["metadata"])}
+    return {**data, "metadata": registry.validate_metadata(data["capability_id"], data["metadata"])}
 
 
-def catalog(mode, availability=None):
-    items = deepcopy(CAPABILITIES)
-    for item in items:
-        item["input"] = deepcopy(INPUT_CONTRACT)
-        item["execution_mode"] = mode
-        item["availability"] = (availability or {}).get(item["id"], "ready" if mode == "mock" else "unavailable")
-        item["quality_status"] = "synthetic_demo" if mode == "mock" else "unverified_candidate"
-    return {"api_version": API_VERSION, "execution_mode": mode, "capabilities": items,
-            "fallback_owner": "application_agent", "implicit_model_fallback": False}
+def catalog(mode, availability=None, registry=None):
+    from .registry import ToolRegistry
+    return (registry if registry is not None else ToolRegistry()).catalog(mode, availability)

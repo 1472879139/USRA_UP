@@ -36,6 +36,10 @@ def main():
     serve.add_argument("--fixtures", default="examples/model_api/mock-fixtures")
     serve.add_argument("--keys-file")
     serve.add_argument("--runtime-config")
+    serve.add_argument("--tool-registry-file", help="已初始化的工具状态文件；每次查询和新提交重新读取")
+    serve.add_argument("--enable-v2", action="store_true", help="启用独立 v2 输入、适配器和任务存储；需要 v2 可选依赖")
+    serve.add_argument("--v2-registry-file", help="独立的 v2 工具启停状态文件")
+    serve.add_argument("--v2-examples", action="store_true", help="仅 mock 模式下注册 JSON 和双 CSV 模拟工具")
     args = parser.parse_args()
     if args.command == "issue-key":
         import re
@@ -60,6 +64,10 @@ def main():
         return
     if not 1024 <= args.port <= 65535:
         parser.error("端口必须在1024～65535之间")
+    if (args.v2_registry_file or args.v2_examples) and not args.enable_v2:
+        parser.error("v2 参数需要同时指定 --enable-v2")
+    if args.v2_examples and args.mode != "mock":
+        parser.error("--v2-examples 仅用于本机 mock 验证")
     if os.name != "nt":
         os.umask(0o077)
     if args.mode == "mock":
@@ -72,7 +80,15 @@ def main():
         configure_gis()
         keys = json.loads(Path(args.keys_file).read_text(encoding="utf-8"))
         backend = GPUBackend(json.loads(Path(args.runtime_config).read_text(encoding="utf-8")))
-    service = Service(args.data_dir, backend, keys)
+    from .registry import ToolRegistry
+    v2_registry = None
+    if args.enable_v2:
+        try:
+            from .v2_adapters import build_registry
+        except ImportError:
+            parser.error("v2 需要独立环境中的 requirements-tools-v2.lock 依赖；不要覆盖 GIS 或模型环境")
+        v2_registry = build_registry(backend, args.v2_registry_file, args.v2_examples)
+    service = Service(args.data_dir, backend, keys, registry=ToolRegistry(args.tool_registry_file), v2_registry=v2_registry)
     server = APIServer(("127.0.0.1", args.port), service)
     def stop(signum, frame):
         threading.Thread(target=server.shutdown, daemon=True).start()

@@ -77,7 +77,8 @@ class GPUBackend:
         env = {k: v for k, v in os.environ.items() if k not in {"URSA_MODEL_API_TOKEN", "URSA_MODEL_API_KEYS"}}
         env["PYTHONPATH"] = str(self.package_root)
         env.update(HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1", YOLO_AUTOINSTALL="false",
-                   YOLO_CONFIG_DIR=str(folder / "yolo-settings"), PYTHONIOENCODING="utf-8")
+                   YOLO_CONFIG_DIR=str(folder / "yolo-settings"), PYTHONIOENCODING="utf-8",
+                   URSA_RESULTS_DIR=str(folder / "output"))
         started = time.monotonic()
         with (folder / "worker.log").open("wb") as log:
             process = subprocess.Popen([python, "-m", "model_service.worker", "--job-dir", str(folder)],

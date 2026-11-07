@@ -1,0 +1,8 @@
+{
+  "api_base_url": "http://127.0.0.1:18767",
+  "public_api_base_url": "https://你的公网IP/ursa-model-api",
+  "public_mcp_url": "https://你的公网IP/ursa-mcp/mcp",
+  "identities_file": "identities.local.json",
+  "requests_per_minute": 120,
+  "allowed_origins": []
+}

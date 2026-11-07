@@ -8,7 +8,8 @@ import zipfile
 
 def build(destination):
     root = Path(__file__).resolve().parents[2]
-    files = sorted((root / "model_service").glob("*.py")) + [root / "model_client.py"]
+    files = sorted((root / "model_service").glob("*.py")) + [
+        root / "model_client.py", root / "tool_client_v2.py", root / "requirements-tools-v2.lock"]
     hashes = {path.relative_to(root).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest() for path in files}
     encoded = json.dumps(hashes, sort_keys=True, separators=(",", ":")).encode()
     manifest = {"api_version": "1.0.0", "release_id": hashlib.sha256(encoded).hexdigest()[:16], "files": hashes}

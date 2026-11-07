@@ -15,6 +15,8 @@ def now():
 
 
 class Store:
+    artifact_api_prefix = "/v1"
+    min_artifacts = 1
     def __init__(self, root, max_bytes=4 * 1024 ** 3):
         self.root = Path(root).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
@@ -69,14 +71,22 @@ class Store:
             raise APIError(404, "NOT_FOUND", "未找到本身份可访问的输入")
         return dict(row)
 
-    def submit(self, owner, payload, idem):
+    def existing_submission(self, owner, payload, idem):
         with self.lock:
             encoded = canonical(payload)
             previous = self.db.execute("SELECT * FROM jobs WHERE owner=? AND idem=?", (owner, idem)).fetchone()
             if previous:
                 if previous["payload_sha"] != sha256(encoded.encode("utf-8")):
                     raise APIError(409, "IDEMPOTENCY_CONFLICT", "同一个幂等标识不能用于不同任务")
-                return self.public_job(owner, previous["id"]), False
+                return self.public_job(owner, previous["id"])
+            return None
+
+    def submit(self, owner, payload, idem):
+        with self.lock:
+            encoded = canonical(payload)
+            previous = self.existing_submission(owner, payload, idem)
+            if previous is not None:
+                return previous, False
             self.input(owner, payload["input_id"])
             active = self.db.execute("SELECT count(*) FROM jobs WHERE owner=? AND status IN ('queued','running','cancelling')", (owner,)).fetchone()[0]
             total = self.db.execute("SELECT count(*) FROM jobs WHERE status='queued'").fetchone()[0]
@@ -137,7 +147,7 @@ class Store:
             job_root = self.job_dir(task["id"]).resolve()
             artifacts = []
             declared = result.pop("files")
-            if not isinstance(declared, list) or not 1 <= len(declared) <= 16:
+            if not isinstance(declared, list) or not self.min_artifacts <= len(declared) <= 16:
                 raise ValueError("产物清单异常")
             total = 0
             for item in declared:
@@ -156,7 +166,7 @@ class Store:
                     raise ValueError("产物哈希或体积不符")
                 artifacts.append({"artifact_id": identity, "name": name, "sha256": sha, "size_bytes": size,
                                   "media_type": item["media_type"], "role": item["role"],
-                                  "download_path": "/v1/artifacts/" + identity})
+                                  "download_path": self.artifact_api_prefix + "/artifacts/" + identity})
             # 先验证全部产物，再一次性登记，避免部分成功回执。
             result["artifacts"] = artifacts
             encoded_result = canonical(result)

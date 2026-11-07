@@ -6,24 +6,37 @@ import json
 import re
 import threading
 import uuid
+from urllib.parse import parse_qs, urlsplit
 
 from .contract import (API_VERSION, APIError, MAX_INPUT_BYTES, MAX_JSON_BYTES, canonical,
                        catalog, decode_json, validate_job, sha256)
 from .storage import Store
 from .backends import BackendError
+from .registry import ToolRegistry
 
 
 class Service:
-    def __init__(self, root, backend, keys, max_bytes=4 * 1024 ** 3):
+    def __init__(self, root, backend, keys, max_bytes=4 * 1024 ** 3, registry=None, v2_registry=None):
         if not keys or any(not re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", k) or not re.fullmatch(r"[0-9a-f]{64}", v) for k, v in keys.items()):
             raise ValueError("需要身份到API密钥SHA256的映射，不接受空认证")
         self.keys = dict(keys)
+        self.registry = registry if registry is not None else ToolRegistry()
+        self.registry.states()
         self.store = Store(root, max_bytes)
         self.backend = backend
+        self.v2 = None
+        if v2_registry is not None:
+            from .v2_service import V2Service
+            try:
+                self.v2 = V2Service(self.store.root / "v2", v2_registry, max_bytes, self.store.root)
+            except Exception:
+                self.store.close()
+                raise
         self.stop = threading.Event()
         self.lock = threading.RLock()
         self.active_id = None
         self.active_cancel = None
+        self.active_v2 = False
         self.worker = threading.Thread(target=self.work, name="single-gpu-worker", daemon=True)
         self.worker.start()
 
@@ -37,42 +50,57 @@ class Service:
                 return identity
         raise APIError(401, "UNAUTHORIZED", "API密钥无效或已撤销")
 
-    def cancel(self, owner, identity):
-        job = self.store.cancel(owner, identity)
+    def cancel(self, owner, identity, v2=False):
+        store = self.v2.store if v2 else self.store
+        job = store.cancel(owner, identity)
         with self.lock:
-            if self.active_id == identity and self.active_cancel:
+            if self.active_id == identity and self.active_v2 == v2 and self.active_cancel:
                 self.active_cancel.set()
         return job
 
     def work(self):
+        prefer_v2 = False
         while not self.stop.is_set():
-            task = self.store.claim()
+            stores = [self.store, self.v2.store] if self.v2 is not None else [self.store]
+            if prefer_v2:
+                stores.reverse()
+            task = None
+            for store in stores:
+                task = store.claim()
+                if task is not None:
+                    break
             if not task:
                 self.stop.wait(0.1)
                 continue
             cancelled = threading.Event()
+            is_v2 = bool(task.get("_v2"))
+            prefer_v2 = not is_v2
             with self.lock:
                 self.active_id, self.active_cancel = task["id"], cancelled
-                if self.store.public_job(task["owner"], task["id"])["status"] == "cancelling":
+                self.active_v2 = is_v2
+                if store.public_job(task["owner"], task["id"])["status"] == "cancelling":
                     cancelled.set()
-            folder = self.store.job_dir(task["id"])
+            folder = store.job_dir(task["id"])
             try:
                 folder.mkdir()
-                source = self.store.input_path(task["input_id"])
-                if source.is_symlink() or sha256(source.read_bytes()) != task["input"]["sha"]:
-                    raise BackendError("INPUT_CHANGED", "输入在提交后发生变化")
-                result = self.backend.run(task, folder, source, cancelled)
-                if sha256(source.read_bytes()) != task["input"]["sha"]:
-                    raise BackendError("INPUT_CHANGED", "输入在执行中发生变化")
+                if is_v2:
+                    result = self.v2.execute(task, folder, cancelled, self.stop)
+                else:
+                    source = self.store.input_path(task["input_id"])
+                    if source.is_symlink() or sha256(source.read_bytes()) != task["input"]["sha"]:
+                        raise BackendError("INPUT_CHANGED", "输入在提交后发生变化")
+                    result = self.backend.run(task, folder, source, cancelled)
+                    if sha256(source.read_bytes()) != task["input"]["sha"]:
+                        raise BackendError("INPUT_CHANGED", "输入在执行中发生变化")
                 if cancelled.is_set():
                     raise BackendError("JOB_CANCELLED", "任务已取消")
                 if self.stop.is_set():
                     raise BackendError("SERVER_STOPPED", "服务停止中断运行，请显式提交新任务", True)
-                self.store.succeed(task, result)
+                store.succeed(task, result)
             except BackendError as exc:
-                self.store.fail(task["id"], exc.code, exc.message, exc.retryable, cancelled=exc.code == "JOB_CANCELLED" and not self.stop.is_set())
+                store.fail(task["id"], exc.code, exc.message, exc.retryable, cancelled=exc.code == "JOB_CANCELLED" and not self.stop.is_set())
             except Exception:
-                self.store.fail(task["id"], "RESULT_CONTRACT_FAILED", "执行或产物核验失败，维护者可按任务ID检查记录")
+                store.fail(task["id"], "RESULT_CONTRACT_FAILED", "执行或产物核验失败，维护者可按任务ID检查记录")
             finally:
                 with self.lock:
                     self.active_id = self.active_cancel = None
@@ -86,6 +114,8 @@ class Service:
         if self.worker.is_alive():
             raise RuntimeError("任务工作进程未停止，未关闭存储")
         self.store.close()
+        if self.v2 is not None:
+            self.v2.store.close()
 
 
 class APIServer(ThreadingHTTPServer):
@@ -145,14 +175,31 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if self.command == "GET" and self.path == "/health":
                 ready = service.worker.is_alive() and not service.stop.is_set()
-                self.send(200 if ready else 503, {"status": "ready" if ready else "degraded", "api_version": API_VERSION, "execution_mode": service.backend.mode})
+                self.send(200 if ready else 503, {"status": "ready" if ready else "degraded", "api_version": API_VERSION,
+                                                "execution_mode": service.backend.mode, "v2_enabled": service.v2 is not None})
                 return
             owner = service.owner(self.headers.get("Authorization"))
-            if self.command == "GET" and self.path == "/v1/capabilities":
-                self.send(200, catalog(service.backend.mode, service.backend.availability()))
+            route = urlsplit(self.path)
+            if route.path.startswith("/v2/"):
+                if service.v2 is None:
+                    raise APIError(404, "V2_DISABLED", "本服务尚未启用 v2")
+                service.v2.dispatch(self, owner, service)
+            elif self.command == "GET" and self.path == "/v1/capabilities":
+                self.send(200, catalog(service.backend.mode, service.backend.availability(), service.registry))
+            elif self.command == "GET" and route.path == "/v1/tools":
+                query = parse_qs(route.query, keep_blank_values=True)
+                if set(query) - {"limit", "offset"} or any(len(v) != 1 for v in query.values()):
+                    raise APIError(400, "INVALID_PAGINATION", "仅接受单一 limit 和 offset 参数")
+                try:
+                    limit, offset = int(query.get("limit", ["20"])[0]), int(query.get("offset", ["0"])[0])
+                except ValueError as exc:
+                    raise APIError(400, "INVALID_PAGINATION", "limit 和 offset 须为整数") from exc
+                self.send(200, service.registry.list_contracts(service.backend.mode, service.backend.availability(), limit, offset))
+            elif self.command == "GET" and re.fullmatch(r"/v1/tools/[a-z][a-z0-9_-]{0,63}", self.path):
+                self.send(200, service.registry.contract(self.path.rsplit("/", 1)[-1], service.backend.mode, service.backend.availability()))
             elif self.command == "GET" and self.path == "/openapi.json":
                 from .openapi import specification
-                self.send(200, specification())
+                self.send(200, specification(service.registry))
             elif self.command == "POST" and self.path == "/v1/inputs":
                 if self.headers.get_content_type() != "image/tiff":
                     raise APIError(415, "MEDIA_TYPE_UNSUPPORTED", "首版输入类型必须是image/tiff")
@@ -161,12 +208,17 @@ class Handler(BaseHTTPRequestHandler):
                     raise APIError(400, "INPUT_UNSUPPORTED", "需要普通TIFF文件；首版不支持BigTIFF或其他格式")
                 self.send(201, service.store.add_input(owner, content))
             elif self.command == "POST" and self.path == "/v1/jobs":
-                payload = validate_job(self.json_body())
-                if service.backend.availability().get(payload["capability_id"]) == "unavailable":
-                    raise APIError(503, "MODEL_UNAVAILABLE", "该模型尚未配置，未自动切换其他模型")
+                payload = validate_job(self.json_body(), service.registry)
                 idem = self.headers.get("Idempotency-Key", "")
                 if not re.fullmatch(r"[a-zA-Z0-9_-]{16,128}", idem):
                     raise APIError(400, "INVALID_IDEMPOTENCY_KEY", "提交任务需要16～128位Idempotency-Key")
+                previous = service.store.existing_submission(owner, payload, idem)
+                if previous is not None:
+                    self.send(200, previous)
+                    return
+                service.registry.require_enabled(payload["capability_id"])
+                if service.backend.availability().get(payload["capability_id"], "unavailable") == "unavailable":
+                    raise APIError(503, "MODEL_UNAVAILABLE", "该模型尚未配置，未自动切换其他模型")
                 job, created = service.store.submit(owner, payload, idem)
                 self.send(202 if created else 200, job)
             elif self.command == "GET" and re.fullmatch(r"/v1/jobs/[0-9a-f]{32}", self.path):
@@ -181,7 +233,7 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 raise APIError(404, "NOT_FOUND", "接口不存在")
         except APIError as exc:
-            self.send(exc.status, {"api_version": API_VERSION, "error": {"code": exc.code, "message": exc.message,
+            self.send(exc.status, {"api_version": "2.0.0" if self.path.startswith("/v2/") else API_VERSION, "error": {"code": exc.code, "message": exc.message,
                      "retryable": exc.retryable, "request_id": self.request_id}})
         except (BrokenPipeError, ConnectionResetError, TimeoutError):
             return

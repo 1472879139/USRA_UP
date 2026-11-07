@@ -60,7 +60,8 @@ def main():
         release.mkdir(parents=True, exist_ok=True)
         for name, sha in manifest["files"].items():
             target = (release / name).resolve()
-            if not target.is_relative_to(release) or not (name.startswith("model_service/") and name.endswith(".py") or name == "model_client.py"):
+            if not target.is_relative_to(release) or not (name.startswith("model_service/") and name.endswith(".py")
+                    or name in {"model_client.py", "tool_client_v2.py", "requirements-tools-v2.lock"}):
                 raise ValueError("发布包路径越界")
             content = package.read(name)
             if hashlib.sha256(content).hexdigest() != sha:
@@ -81,6 +82,14 @@ def main():
     runtime = {"da_python": str(da / "venv/bin/python"), "da_weights": str(da / "models/DelineateAnythingv2.pt"),
                "terramind_python": sys.executable, "terramind_runtime_dir": str(tm)}
     private_json(root / "runtime.local.json", runtime)
+    registry_file = root / "tools.local.json"
+    if not registry_file.exists():
+        subprocess.run([sys.executable, "-m", "model_service.tools", "--registry-file", str(registry_file), "init"],
+                       cwd=release, check=True)
+    else:
+        # 只读校验已有状态，升级不会重新启用停用或移出的工具。
+        subprocess.run([sys.executable, "-m", "model_service.tools", "--registry-file", str(registry_file), "list"],
+                       cwd=release, check=True, stdout=subprocess.DEVNULL)
     keys = root / "api-keys.local.json"
     for owner in ["maintainer", "application-dev"]:
         client_file = private / (owner + ".local.json")
@@ -103,7 +112,7 @@ After=network-online.target
 [Service]
 Type=simple
 WorkingDirectory={release}
-ExecStart=/bin/bash {wrapper} -m model_service serve --mode gpu --data-dir {root}/data --keys-file {keys} --runtime-config {root}/runtime.local.json --port 18767
+ExecStart=/bin/bash {wrapper} -m model_service serve --mode gpu --data-dir {root}/data --keys-file {keys} --runtime-config {root}/runtime.local.json --tool-registry-file {registry_file} --port 18767
 Environment=PYTHONIOENCODING=utf-8
 Restart=on-failure
 RestartSec=5

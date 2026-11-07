@@ -14,6 +14,10 @@
 
 首次协作可直接按规范第4节执行“同步main → 任务分支开发 → 本地提交 → 推送 → PR审查 → 合并后同步”，无写权限成员使用其中的Fork流程。使用Codex时从项目根目录开始，并读取 [AGENTS.md](AGENTS.md) 和规范第14节；文档中的推送与合并示例不构成自动发布授权。
 
+MCP 服务的本地开发、打包与部署请阅读[MCP 服务说明](docs/mcp-service.md)；应用开发者可按[MCP 开发者接入指南](docs/mcp-developer-guide.md)调用已上线服务。
+
+[统一工具注册、契约与启停管理](docs/tool-registry.md)及[异构工具 API v2 与适配器接入](docs/tool-api-v2.md)已于 2026-11-07 部署并完成公网只读验收。v2 支持命名文件/JSON 输入和独立输出结构，原 v1 调用方式保留；当前生产注册两个已有模型。版本、环境与回滚见[上线记录](docs/tool-v2-deployment.md)。
+
 ## 本地运行
 
 在项目根目录执行：

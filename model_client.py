@@ -59,6 +59,16 @@ class ModelClient:
     def capabilities(self):
         return self.request("GET", "/v1/capabilities")
 
+    def tools(self, limit=20, offset=0):
+        if type(limit) is not int or not 1 <= limit <= 50 or type(offset) is not int or offset < 0:
+            raise ValueError("limit 须为 1～50，offset 须为非负整数")
+        return self.request("GET", f"/v1/tools?limit={limit}&offset={offset}")
+
+    def tool_contract(self, tool_id):
+        if not isinstance(tool_id, str) or not re.fullmatch(r"[a-z][a-z0-9_-]{0,63}", tool_id):
+            raise ValueError("无效工具 ID")
+        return self.request("GET", "/v1/tools/" + tool_id)
+
     def upload(self, path):
         path = Path(path)
         if not path.is_file() or path.is_symlink() or not 0 < path.stat().st_size <= 16 * 1024 ** 2:

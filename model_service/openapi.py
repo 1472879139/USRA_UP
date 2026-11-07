@@ -2,7 +2,7 @@
 from .contract import API_VERSION, BANDS, MAX_INPUT_BYTES
 
 
-def specification():
+def specification(registry=None):
     ref = lambda name: {"$ref": "#/components/schemas/" + name}
     response = lambda name: {"description": name, "content": {"application/json": {"schema": ref(name)}}}
     def operation(summary, result, status="200", body=None, parameters=None):
@@ -19,6 +19,11 @@ def specification():
     paths = {
         "/health": {"get": {**operation("服务存活与API版本；不证明模型精度或CUDA当前可用", "Health"), "security": []}},
         "/v1/capabilities": {"get": operation("查询能力、输入条件、模型版本与显式模拟标志", "Catalog")},
+        "/v1/tools": {"get": operation("分页查询工具、启停状态、输入和预期输出契约", "ToolCatalog", parameters=[
+            {"name": "limit", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 50, "default": 20}},
+            {"name": "offset", "in": "query", "schema": {"type": "integer", "minimum": 0, "default": 0}}])},
+        "/v1/tools/{tool_id}": {"get": operation("查询已登记且未移出的工具契约；停用工具仍可查看", "ToolContract",
+            parameters=[{"name": "tool_id", "in": "path", "required": True, "schema": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$"}}])},
         "/v1/inputs": {"post": upload},
         "/v1/jobs": {"post": operation("显式提交一个模型任务；幂等重试不会重复运行GPU", "Job", "202", "JobRequest",
             [{"name": "Idempotency-Key", "in": "header", "required": True, "schema": {"type": "string", "pattern": "^[a-zA-Z0-9_-]{16,128}$"}}])},
@@ -79,7 +84,21 @@ def specification():
                        "properties": {"code": {"type": "string"}, "message": {"type": "string"}, "retryable": {"type": "boolean"}, "request_id": {"type": "string"}}}}},
         "EmptyObject": {"type": "object", "additionalProperties": False},
         "OpenAPI": {"type": "object"},
+        "ToolContract": {"type": "object", "required": ["tool_id", "mcp_name", "capability", "metadata_schema", "result_schema", "registry_revision"],
+            "properties": {"tool_id": {"type": "string"}, "mcp_name": {"type": "string"},
+                "capability": ref("Capability"), "metadata_schema": {"type": "object"},
+                "job_schema": {"type": "object"}, "result_schema": {"type": "object"}, "registry_revision": {"type": "string"}}},
+        "ToolCatalog": {"type": "object", "required": ["tools", "registry_revision", "total", "has_more", "next_offset"],
+            "properties": {"tools": {"type": "array", "items": ref("ToolContract")}, "registry_revision": {"type": "string"},
+                "total": {"type": "integer", "minimum": 0}, "has_more": {"type": "boolean"}, "next_offset": {"type": ["integer", "null"]}}},
     }
+    if registry is not None:
+        schemas["JobRequest"] = {"oneOf": [
+            {"type": "object", "additionalProperties": False, "required": ["capability_id", "input_id", "metadata"],
+             "properties": {"capability_id": {"const": tool_id},
+                            "input_id": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
+                            "metadata": registry.definition(tool_id).metadata_schema}}
+            for tool_id in registry.ids()]}
     return {"openapi": "3.1.0", "info": {"title": "USRA模型服务与应用交接API", "version": API_VERSION,
             "description": "专用/通用模型统一契约。应用负责DeepSeek与兜底，服务不隐式换模型。默认无外部真值评价。"},
             "servers": [{"url": "http://127.0.0.1:18767", "description": "本机模拟/SSH转发；远程真实入口使用HTTPS"}],
